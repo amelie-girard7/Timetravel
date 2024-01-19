@@ -22,23 +22,53 @@ def load_first_line_from_json(file_path):
         raise IOError(f"Error reading from {file_path}: {e}")
 
 def preprocess_data(row):
-    """
-    Preprocess a row of the dataset for Flan-T5 model.
-    Combines 'premise', 'initial', and 'counterfactual' into a single string.
-    Uses the first 'edited_ending' as the target output, if available.
-    """
-    input_text = f"Premise: {row['premise']} Initial: {row['initial']} Counterfactual: {row['counterfactual']}"
-    output_text = row.get('edited_ending', [""])[0] if isinstance(row.get('edited_ending', [""]), list) else row.get('edited_ending', "")
-    return pd.Series({"input_text": input_text, "output_text": output_text})
+    try:
+        # Extracting fields from the row
+        premise = row.get('premise', "Missing premise")
+        initial = row.get('initial', "Missing initial")
+        original_ending = row.get('original_ending', "Missing original_ending")
+        counterfactual = row.get('counterfactual', "Missing counterfactual")
+        edited_ending = row.get('edited_ending', ["Missing edited_ending"])
+        
+        # Ensure edited_ending is a list
+        if not isinstance(edited_ending, list):
+            edited_ending = ["Invalid format for edited_ending"]
+        
+        # Constructing the input sequence (Premise, Initial, Original Ending, Counterfactual)
+        separator_token = "[s]"
+        input_sequence = f"{premise} {separator_token} {initial} {separator_token} {original_ending} {separator_token} {counterfactual}"
+        
+        # Constructing the output sequence (Edited Ending)
+        output_sequence = ' '.join(edited_ending)
+        
+        return pd.Series({
+            'input_ids': input_sequence,
+            'output_ids': output_sequence
+        })
+    except Exception as e:
+        print(f"An error occurred while processing the data: {e}")
+        print(f"Problematic data row: {row}")
+        return pd.Series({
+            'input_ids': "Error in input",
+            'output_ids': "Error in output"
+        })
 
 def collate_fn(batch, tokenizer):
     """
     Tokenize and collate a batch of data for the T5 model.
     """
-    input_texts = [item['input_text'] for item in batch]
-    output_texts = [item['output_text'] for item in batch]
-    encoding = tokenizer(input_texts, padding=True, truncation=True, return_tensors="pt")
+    # Extracting input and output sequences from the batch
+    input_sequences = [item['input_ids'] for item in batch]
+    output_sequences = [item['output_ids'] for item in batch]
+    
+    # Tokenizing input sequences
+    encoding = tokenizer(input_sequences, padding=True, truncation=True, return_tensors="pt")
+    
+    # Tokenizing output sequences
     with tokenizer.as_target_tokenizer():
-        labels = tokenizer(output_texts, padding=True, truncation=True, return_tensors="pt")["input_ids"]
+        labels = tokenizer(output_sequences, padding=True, truncation=True, return_tensors="pt")["input_ids"]
+    
+    # Adding labels to the encoding
     encoding["labels"] = labels
+    
     return encoding

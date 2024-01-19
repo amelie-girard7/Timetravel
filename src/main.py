@@ -1,11 +1,14 @@
 import os
 from pathlib import Path
 import sys
+import torch
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from src.models.model import FlanT5FineTuner
+from src.models.model_T5 import FlanT5FineTuner
 from src.data_loader import create_dataloaders
 from src.utils.utils import preprocess_data, collate_fn
 
@@ -44,17 +47,38 @@ def main():
     valid_dataloader = dataloaders['dev_data1.json']
     test_dataloader = dataloaders['test_data1.json']
 
+    # Add a model checkpoint callback to save the model's best weights
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=model_save_path,
+        filename="best-checkpoint",
+        save_top_k=1,
+        verbose=True,
+        monitor="val_loss",
+        mode="min"
+    )
+    
+    # Add TensorBoard Logger
+    logger = TensorBoardLogger("lightning_logs", name="flan-t5")
+
     trainer = pl.Trainer(
-        max_epochs=CONFIG["max_epochs"],
-        precision=16,
-        accumulate_grad_batches=4,
-        default_root_dir=model_save_path
+    max_epochs=CONFIG["max_epochs"],
+    precision=16,
+    accumulate_grad_batches=4,
+    default_root_dir=model_save_path,
+    callbacks=[checkpoint_callback],
+    logger=logger,
+    accelerator="gpu" if torch.cuda.is_available() else None,  # Use GPU if available
+    devices=1 if torch.cuda.is_available() else None  # Number of GPUs
     )
 
     trainer.fit(model, train_dataloader, valid_dataloader)
 
-    model.model.save_pretrained(model_save_path)
-    model.tokenizer.save_pretrained(model_save_path)
+    # Test the model after training
+    trainer.test(model, test_dataloader)
+
+    # Save the model manually (if needed, ModelCheckpoint saves the best automatically)
+    # model.model.save_pretrained(model_save_path)
+    # model.tokenizer.save_pretrained(model_save_path)
 
 if __name__ == '__main__':
     main()
