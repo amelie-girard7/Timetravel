@@ -1,123 +1,45 @@
-# Summary of the Paper "Counterfactual Story Reasoning and Generation"
+# TimeTravel Project: Counterfactual Story Rewriting Evaluation
 
-[Counterfactual Story Reasoning and Generation](https://arxiv.org/abs/1909.04076)
+### Objective:
 
-**Objective**: 
-- The paper introduces the task of Counterfactual Story Rewriting. It's about revising an original story to align with a counterfactual event, requiring an understanding of causal narrative chains and counterfactual invariance.
+The primary aim of this project is to rigorously evaluate the performance of models specialized in counterfactual story rewriting. The evaluation process begins with employing established metrics such as BLEU and ROUGE, followed by more context-aware metrics like BERT and BART. These metrics provide a quantitative foundation for assessing the model's performance. However, given the inherent complexity and nuanced nature of counterfactual reasoning, the project also seeks to transcend these traditional metrics. It aims to develop and implement a linguistically-driven evaluative approach. This approach will focus on analyzing the linguistic differences between the counterfactual and the generated endings, as well as between the initial and the generated endings. The intent is to explore the linguistic transformations and narrative shifts brought forth by the counterfactual intervention, thereby offering a deeper, more nuanced understanding of the model's capabilities in crafting coherent and contextually relevant counterfactual narratives.
 
-**Challenges**:
-- Difficulty in discriminating between reasonable and unreasonable counterfactuals.
-- Risk of models exploiting dataset artifacts rather than robustly reasoning about counterfactuals.
-- Need for models to understand underlying dynamics and reason about causal invariance.
-- Struggle of neural language models to rewrite endings consistently.
+### Task Description:
 
-**Dataset**: 
-- TIMETRAVEL dataset with 29,849 counterfactual rewritings.
-- Collected through a two-step task with Amazon Mechanical Turk crowdworkers.
-- Aimed to encourage models to understand situation dynamics and generate consequences of counterfactual reasoning.
+In our tasks, the concept of a "counterfactual event" serves as a pivotal point that triggers alterations within the story's sequence of events. This mirrors the causal interventions as described by Pearl (2000). The introduction of a counterfactual event necessitates narrative modifications that must align with the general, widely accepted understanding of how events unfold in the real world. This process not only demands the integration of causal reasoning in a manner that's comprehensible to individuals unacquainted with complex causality theories but also provides a platform to assess the current capabilities and limitations of neural language models concerning counterfactual reasoning.
 
-**Models Evaluated**: 
-- Performance of pretrained language models (GPT, GPT-2 variants) evaluated.
-- Settings: zero-shot, unsupervised, and supervised.
-- Effectiveness of metrics like BLEU, ROUGE, BERTScore analyzed.
+Counterfactual rewriting is not merely about altering the narrative; it's about understanding and narratively weaving the intricate web of causes and effects within a story. This task often requires detailed and diverse adjustments in the narrative to ensure that the new trajectory of the story resonates authentically with the introduced counterfactual element. The endeavor is to ensure that these narrative alterations are not just plausible but also retain a strong coherence with the original premise, thereby reflecting a deep and nuanced understanding of the narrative's causal structure.
 
-**Methodology**: 
-- Training settings included unsupervised training, fine-tuning on ROCStories corpus, and supervised training with human-annotated endings.
-- Two groups of crowdworkers involved in annotation: creating counterfactuals and coherent story endings.
+The evaluation metrics traditionally used, such as BLEU, ROUGE, BERTScore, and adaptations of BART, provide valuable quantitative insights. However, our goal is to augment these insights with a linguistically-driven analysis that probes deeper into the narrative alterations induced by counterfactual reasoning. By examining the linguistic nuances and narrative shifts, we aim to offer a more comprehensive, multi-dimensional understanding of the model's performance in counterfactual story rewriting.
 
-### Step 2: Preparing to Replicate Using LAMA2
+## Supervised Learning for Story Rewriting
 
-#### 2.1. Select an Open-Source LLM
-- **Action**: Choose - LAMA2 from Hugging Face. (Too big for IHCP: Try NECTAR)
-                     -  flan-T5
+The goal is to fine-tune a pre-trained model (Flan-T5) for the task of counterfactual story rewriting. This involves training the model to generate a story ending that aligns with both the original premise and an introduced counterfactual element.
 
-#### 2.2. Obtain the TIMETRAVEL Dataset
-- **Action**: Download the dataset from the provided source.(src\timetravel\data)
+### Model Input and Output Components
 
-#### 2.3. Set Up the Environment
-- **Tools**: Pytorch Lightning, IHPC (heaphesots3),
+- $p_{\theta}$: The model's predicted probability distribution, parameterized by $\theta$.
+- $s'_{3:5}$: The sequence representing the rewritten (edited) ending.
+- $S$: The complete story, denoted as $x1x2y$.
+- $s1$: The premise of the story.
+- $s'_{2}$: The counterfactual input, introducing a twist in the story.
 
-#### 2.4. Preprocess the Data
-- **Data Files**: Include supervised (small and large sets), unsupervised, dev, and test sets.
-- **Format**: Adapt the data format to LAMA2's requirements.
+### Loss Function
 
-- **Splitting**: Ensure data is split as per the paper (training, validation, test sets).
+The loss function quantifies the alignment between the model's predictions and the actual rewritten endings. It's defined as:
 
-#### 2.5. Model Training
-- **Zero-Shot Setting**: Test LAMA2's base performance without specific training.
-- **Unsupervised Training**: Train on ROCStories corpus without explicit counterfactual annotations.
-- **Supervised Training**: Fine-tune with human-annotated counterfactual rewritings.
+$$
+L(\theta) = -\sum_i y_i \log p_{\theta}(y_i | X)
+$$
 
-#### 2.6. Evaluation
-- **Metrics**: Implement BLEU, ROUGE, BERTScore for evaluation.
-- **Comparison**: Compare model performance across different settings with the paper's results.
+Where:
+- $L(\theta)$: The loss function, parameterized by $\theta$.
+- $y_i$: The actual token in the rewritten ending for the $i^{th}$ element.
+- $p_{\theta}(y_i | X)$: The probability assigned by the model to the token $y_i$, given the input $X$.
 
-#### 2.7. Analysis and Reporting
-- **Analysis**: Assess model's counterfactual reasoning and narrative consistency.
-- **Documentation**: Note deviations from the paper's results and hypothesize reasons.
+### Training and Evaluation
 
-### Step 3: Implementation in Python
-
-Now, we'll move to the practical part, which involves writing and running Python code to achieve the steps outlined above. This includes setting up the environment, preprocessing the data, training the model, and evaluating its performance.
-
-The actual coding and running of scripts can be done in an IDE like VS Code or directly in a Google Colab notebook. Remember, the success of replication depends on accurately following the methodology of the paper and adapting it to work with LAMA2.
-
----
+The model undergoes training to learn the patterns in the data, guided by the loss function. The evaluation process assesses the quality of the rewritten stories, ensuring they are coherent and consistent with the counterfactual premise.
 
 
-Let's review the content of the three files(`main.py`, `model.py`, `utils.py`) to understand the structure of your program and identify the cause of the error when executing `main.py`.
-
-### 1. `main.py`
-
-This file is the entry point of your program. It likely contains the script to process the data, create the model, train it, and save the trained model. It probably also sets up the necessary configurations, loads the data, and initiates the training process.
-
-### 2. `model.py`
-
-This file should contain the definition of your PyTorch Lightning model class, `FlanT5FineTuner`. This class would typically include methods for the forward pass, training, validation, test steps, and optimizer configuration. It's crucial for defining how your model will operate during training and evaluation.
-
-### 3. `utils.py`
-
-This file is expected to contain utility functions like `count_json_lines`, `load_first_line_from_json`, and `preprocess_data`. These functions assist in handling and processing the JSON data files. Additionally, `collate_fn` should be defined here, which is responsible for preparing batches of data during training.
-
-To understand the error you're encountering, I will review the contents of these files and provide insights or suggestions for fixes. Let me start by examining `main.py`.
-
-The `main.py` file contains the main script for your program. Here's a summary of its structure:
-
-1. **Imports**: The script imports necessary modules and functions from `utils.py` and `model.py`.
-
-2. **Configuration**: A `CONFIG` dictionary is defined, containing key parameters like the root directory, model name, batch size, number of workers, and maximum epochs.
-
-3. **Main Function (`main()`)**:
-   - Sets up paths for data and model saving.
-   - Iterates over the dataset files (`train_supervised_small1.json`, `dev_data1.json`, `test_data1.json`), reads them, and processes the first line for display.
-   - Reads and preprocesses the data using the `preprocess_data` function.
-   - (The rest of the script is not visible in the provided snippet, but likely includes model initialization, data loading, training, and model saving.)
-
-Next, let's review the contents of `model.py` to understand the `FlanT5FineTuner` class implementation.
-
-The `model.py` file defines the `FlanT5FineTuner` class, a PyTorch Lightning model for fine-tuning the Flan-T5 model. Here's an overview:
-
-- **Imports**: The script imports PyTorch, the Transformers library, and PyTorch Lightning.
-
-- **Class Definition (`FlanT5FineTuner`)**:
-  - **Initialization (`__init__`)**: Initializes the T5 model and tokenizer using the provided `model_path`.
-  - **Forward Method**: Defines the forward pass of the model.
-  - **Training Step**: Implements the training step, computing the loss.
-  - **Validation Step**: Implements the validation step, computing the validation loss.
-  - **Test Step**: Implements the test step, computing the test loss.
-  - **Optimizer Configuration**: Configures the optimizer for the model.
-
-Finally, let's review the content of `utils.py` to see the utility functions and the implementation of `collate_fn`.
-
-The `utils.py` file contains utility functions and the `collate_fn` function. Here's a summary:
-
-- **Utility Functions**:
-  - `count_json_lines(file_path)`: Counts the number of lines in a JSON file.
-  - `load_first_line_from_json(file_path)`: Loads the first line from a JSON file.
-  - `preprocess_data(row)`: Preprocesses a row of the dataset for the T5 model. It combines 'premise', 'initial', and 'counterfactual' into a single string and uses the first 'edited_ending' as the target output.
-
-- **Collate Function (`collate_fn`)**:
-  - Accepts a batch of data and a tokenizer.
-  - Tokenizes input and output texts for the T5 model.
-  - Prepares the tokenized data for training by setting up the encoding and labels.
-  - Returns the prepared batch for training.
+For a more detailed breakdown of the code structure and how each component contributes to the project, please refer to the `README.md` in the root directory.

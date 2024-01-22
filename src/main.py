@@ -1,84 +1,125 @@
+# src/main.py
 import os
-from pathlib import Path
 import sys
 import torch
-import pytorch_lightning as pl
+import logging
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
+from pathlib import Path
 
+# Append src to the system path for imports.
+# This allows the script to access the 'src' directory as if it were a package.
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+# Importing custom modules.
 from src.models.model_T5 import FlanT5FineTuner
 from src.data_loader import create_dataloaders
 from src.utils.utils import preprocess_data, collate_fn
+from src.utils.config import CONFIG
 
-CONFIG = {
-    "root_dir": Path(__file__).resolve().parent.parent,
-    "model_name": "google/flan-t5-base",
-    "batch_size": 4,
-    "num_workers": 3,
-    "max_epochs": 3,
-}
+# Setup logging.
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Define the model globally
-model = FlanT5FineTuner(CONFIG["model_name"])
+def setup_model():
+    """
+    Initializes and returns the Flan T5 model configured with the specified model name.
+    
+    Returns:
+        FlanT5FineTuner: The initialized Flan T5 model.
+    """
+    model = FlanT5FineTuner(CONFIG["model_name"])
+    return model
 
-def custom_collate_fn(batch):
-    # Use the globally defined model's tokenizer
-    return collate_fn(batch, model.tokenizer)
-
-def main():
-    data_path = CONFIG["root_dir"] / 'data' / 'raw'
-    model_save_path = CONFIG["root_dir"] / 'models'
-    model_save_path.mkdir(exist_ok=True)
-
+def setup_dataloaders(model):
+    """
+    Sets up PyTorch dataloaders for the training, validation, and test datasets.
+    
+    Parameters:
+        model (FlanT5FineTuner): The model for which the dataloaders are being set up.
+    
+    Returns:
+        dict: A dictionary containing the training, validation, and test dataloaders.
+    """
+    data_path = CONFIG["data_dir"] / 'raw'
     file_names = ['train_supervised_small1.json', 'dev_data1.json', 'test_data1.json']
 
     dataloaders = create_dataloaders(
         data_path,
         file_names,
         CONFIG["batch_size"],
-        custom_collate_fn,  # Use the custom collate function
+        model.tokenizer,  # Pass tokenizer directly to create_dataloaders
         preprocess_data,
         CONFIG["num_workers"]
     )
+    return dataloaders
 
-    train_dataloader = dataloaders['train_supervised_small1.json']
-    valid_dataloader = dataloaders['dev_data1.json']
-    test_dataloader = dataloaders['test_data1.json']
-
-    # Add a model checkpoint callback to save the model's best weights
+def setup_trainer(model_save_path):
+    """
+    Configures the PyTorch Lightning trainer with checkpointing and TensorBoard logging.
+    
+    Parameters:
+        model_save_path (Path): Path where the model checkpoints will be saved.
+    
+    Returns:
+        Trainer: The configured PyTorch Lightning trainer.
+    """
     checkpoint_callback = ModelCheckpoint(
         dirpath=model_save_path,
-        filename="best-checkpoint",
+        filename='best-checkpoint',
         save_top_k=1,
         verbose=True,
-        monitor="val_loss",
-        mode="min"
+        monitor='val_loss',
+        mode='min'
     )
     
-    # Add TensorBoard Logger
-    logger = TensorBoardLogger("lightning_logs", name="flan-t5")
+    logger = TensorBoardLogger(save_dir=os.path.join(model_save_path, 'lightning_logs'), name='flan-t5')
 
-    trainer = pl.Trainer(
-    max_epochs=CONFIG["max_epochs"],
-    precision=16,
-    accumulate_grad_batches=4,
-    default_root_dir=model_save_path,
-    callbacks=[checkpoint_callback],
-    logger=logger,
-    accelerator="gpu" if torch.cuda.is_available() else None,  # Use GPU if available
-    devices=1 if torch.cuda.is_available() else None  # Number of GPUs
-    )
+    # Define a PyTorch Lightning trainer with the desired settings.
+    if torch.cuda.is_available():
+        trainer = Trainer(
+            max_epochs=CONFIG["max_epochs"],
+            accelerator='gpu',
+            devices=1,  # Specify the number of GPUs you want to use.
+            logger=logger,
+            callbacks=[checkpoint_callback],
+            # Additional parameters can be passed according to requirements.
+        )
+    else:
+        trainer = Trainer(
+            max_epochs=CONFIG["max_epochs"],
+            logger=logger,
+            callbacks=[checkpoint_callback],
+            # Additional parameters can be passed according to requirements.
+        )
+    return trainer
 
-    trainer.fit(model, train_dataloader, valid_dataloader)
+def main():
+    """
+    The main execution function for setting up and running the training process.
+    Handles the entire workflow from model setup, data loading, training, and testing.
+    """
+    try:
+        model = setup_model()
+        dataloaders = setup_dataloaders(model)
+        model_save_path = CONFIG["models_dir"]
+        model_save_path.mkdir(exist_ok=True)
 
-    # Test the model after training
-    trainer.test(model, test_dataloader)
+        trainer = setup_trainer(model_save_path)
 
-    # Save the model manually (if needed, ModelCheckpoint saves the best automatically)
-    # model.model.save_pretrained(model_save_path)
-    # model.tokenizer.save_pretrained(model_save_path)
+        train_dataloader = dataloaders['train_supervised_small1.json']
+        valid_dataloader = dataloaders['dev_data1.json']
+        test_dataloader = dataloaders['test_data1.json']
+
+        # Start the training process.
+        trainer.fit(model, train_dataloader, valid_dataloader)
+        
+        # Evaluate the model on the test data after training.
+        trainer.test(dataloaders=test_dataloader)
+    except Exception as e:
+        logger.exception(f"An error occurred during training or testing: {e}")
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
