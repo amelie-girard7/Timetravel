@@ -107,17 +107,15 @@ The core of this project lies in fine-tuning pre-trained language models, such a
 
 The objective during training is to maximize the log-likelihood of the actual rewritten endings:
 
-$$
-L_s(\theta) = \log p_{\theta}(s'_{3:5}|S, [s], s1, s'_{2})
-$$
+$L_s(\theta) = \log p_{\theta}(s'_{3:5}|S, [s], s1, s'_{2})$
 
 where:
-- \(p_{\theta}\): The probability distribution parameterized by \(\theta\).
-- \(s'_{3:5}\): The sequence representing the edited ending.
-- \(S\): The complete story (x1x2y).
-- \([s]\): Separator token.
-- \(s1\): The premise.
-- \(s'_{2}\): The counterfactual input.
+- $(p_{\theta}$): The probability distribution parameterized by \(\theta\).
+- $(s'_{3:5}$): The sequence representing the edited ending.
+- $(S$): The complete story (x1x2y).
+- $([s]$): Separator token.
+- $(s1$): The premise.
+- $(s'_{2}$): The counterfactual input.
 
 For more details on the training process and the setup for counterfactual story rewriting, please refer to our paper.
 
