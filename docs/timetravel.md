@@ -27,10 +27,10 @@ The goal is to fine-tune a pre-trained model (Flan-T5) for the task of counterfa
 
 
 ```math
-L_s(\theta) = \log p_{\theta}(s'_{3:5} \mid S, [s], s_1, s'_{2})
+L_s(\theta) = \log p_{\theta}(s'_{3:5} \mid S, <s>, s_1, s'_{2})
 ```
-Input: x1x2yx1xx2 (premise, initial, original ending, counterfactual)
-Target output: s'_{3:5} 
+Input: x1x2yx1xx2 (premise, initial, original ending, counterfactual,<s>)
+Target output: s'_{3:5}
 
 
 ### Training and Evaluation
