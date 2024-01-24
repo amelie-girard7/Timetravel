@@ -112,12 +112,12 @@ L_s(\theta) = \log p_{\theta}(s'_{3:5} \mid S, [s], s_1, s'_{2})
 ```
 
 where:
-- $(p_{\theta}$): The probability distribution parameterized by \(\theta\).
-- $(s'_{3:5}$): The sequence representing the edited ending.
-- $(S$): The complete story (x1x2y).
-- $([s]$): Separator token.
-- $(s1$): The premise.
-- $(s'_{2}$): The counterfactual input.
+- $p_{\theta}$: The probability distribution parameterized by \(\theta\).
+- $s'_{3:5}$: The sequence representing the edited ending.
+- $S$: The complete story (x1x2y).
+- $[s]$: Separator token.
+- $s1$: The premise.
+- $s'_{2}$: The counterfactual input.
 
 For more details on the training process and the setup for counterfactual story rewriting, please refer to our paper.
 
