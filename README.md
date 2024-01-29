@@ -9,17 +9,17 @@ Link to paper: [paper link](#)
 
 ## 1. Introduction
 
-Pearl's causal ladder delineates challenges in AI-driven by data into three distinct levels: observation (termed "seeing"), intervention ("doing"), and counterfactuals ("imagining").
+Pearl's causal ladder delineates challenges in AI-driven by data into three distinct Rungs: observation (termed "seeing"), intervention ("doing"), and counterfactuals ("imagining").
 
-**Observation**: This tier focuses on recognizing statistical correlations, posing questions like, "How often do I resort to aspirin for my headaches?" Concentrating on the statistical interrelations among variables, it involves probabilistic analysis of joint and conditional distributions, denoted by P(X = x, Y = y) and P(Y = y|X = x).
+**Observation**: This tier focuses on recognizing statistical correlations, posing questions like, "How often do I resort to aspirin for my headaches?" Concentrating on the statistical interrelations among variables, it involves probabilistic analysis of joint and conditional distributions, denoted by $P(X = x, Y = y$) and $P(Y = y|X = x$).
 
-**Intervention**: This tier is about executing strategic actions to realize specific goals, such as, "Will taking an aspirin now mitigate my headache?" It employs the do-operator [24] and Causal Bayesian Networks [63] for depicting interventions, for example, illustrating the distribution of Y when X is manipulated to a certain value x, represented as P(Y = y|do(X = x)).
+**Intervention**: This tier is about executing strategic actions to realize specific goals, such as, "Will taking an aspirin now mitigate my headache?" It employs the do-operator [24] and Causal Bayesian Networks [63] for depicting interventions, for example, illustrating the distribution of $Y$ when $X$ is set to a certain value x, represented as $P(Y = y|(X = x)$).
 
-**Counterfactuals**: This tier engages with counterfactual contemplation, pondering over hypothetical scenarios that differ from the actual events, even contradicting them at times, such as, "Had I taken an aspirin, would my headache have ceased?" Counterfactual probabilities are represented as P(Yx = y), signifying the likelihood that "Y would have been y, had X been x." Addressing counterfactual notions necessitates Structural Causal Models (SCMs) [63], which are robust tools as they facilitate precise articulation of concepts across all three rungs [3].
+**Counterfactuals**: This tier engages with counterfactual contemplation, pondering over hypothetical scenarios that differ from the actual events, even contradicting them at times, such as, "Had I taken an aspirin, would my headache have ceased?" Counterfactual probabilities are represented as $P(Y|x = y$), signifying the likelihood that "$Y$ would have been $y$, had $X$ been $x$." Addressing counterfactual notions necessitates Structural Causal Models (SCMs) [63], which are robust tools as they facilitate precise articulation of concepts across all three rungs [3]. (Todo: you have to check all the notation and the references, this is the paper that Massimo liked )
 
 As one progresses through this hierarchy, the complexity of issues escalates, demanding a profound understanding of causality that transcends observable data. This framework introduces unique challenges and opportunities, especially concerning explainability and its intersection with causal studies. We focus on natural language processing, where deciphering inherent causality is crucial. Such understanding is instrumental for identifying and substituting components within models with coded modules, potentially enhancing their reliability and performance.
 
-**Counterfactual story rewriting**
+**Counterfactual story rewriting** (Todo: review all the citations , this is from the orginal paper)
 
 Counterfactual reasoning entails the exploration of alternative scenarios that deviate from the current storyline. This notion is extensively examined in fields such as psychology, as indicated by Epstude and Roese (2008), cognitive science as mentioned by Byrne (2002), and natural language processing, as discussed in the works of Hobbs (2005), Lawrence and Riezler (2018), and Son et al. (2017). Despite advancements in NLP through pre-trained models like BERT (Devlin et al., 2018) and GPT (Radford et al., 2018), these models often struggle to distinguish between plausible and implausible counterfactuals, a challenge accentuated in Zellers et al. (2019). Furthermore, when these models manage to discern reasonable alternatives, they may rely on underlying biases in the dataset, as observed in studies by Niven and Kao (2019) and Zellers et al. (2018), rather than cultivating a robust comprehension of counterfactual reasoning. Encouraging models to generate outcomes from counterfactual prompts might deepen their understanding of the underlying situation dynamics, as opposed to merely distinguishing between two alternatives, which might leverage biases in the dataset (Lianhui et al., 2019). This approach is akin to script learning, which involves normalizing typical event sequences to understand causal narrative structures, as researched by Pichotta and Mooney (2014) and Chambers (2013). However, encapsulating the complexity of causal relationships in templated formats poses challenges, as highlighted by Sap et al. (2019). Consequently, our focus is on counterfactual reasoning within unstructured text, necessitating models to not only comprehend but also generate the outcomes of such reasoning.
 
@@ -108,9 +108,9 @@ This file contains utility functions to handle data preprocessing and loading.
 - **`load_first_line_from_json(file_path)`:** Loads the first line from a JSON file, which could be used for testing or data inspection.
 - **`preprocess_data(row)`:** Processes each row of data, extracting necessary fields and constructing input-output sequences for model training or inference.
 
-  - Input: x1x2yx1xx2 
+  - Input: $x1x2yx1xx2$ 
   ({premise} {initial} {original_ending} {separator_token} {initia}{counterfactual})
-  - Output: s'_{3:5} 
+  - Output: $s'_{3:5}$
   ({edited ending})
 
 
