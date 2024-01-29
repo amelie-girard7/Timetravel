@@ -98,11 +98,15 @@ The dataset can be **downloaded** from [here](https://drive.google.com/file/d/15
 }
 ```
 
-## Code Dataflow
+## Code 
+
+### Dataflow
 
 <img src="./images/dataflow.png" alt="dataflow"/>
 
+### Files dependencies
 
+<img src="./images/structure.png" alt="structure"/>
 
 ## Model Training and Evaluation
 
