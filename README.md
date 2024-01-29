@@ -1,4 +1,4 @@
-# Evaluation Metrics of Counterfactual Story Rewriting
+# Evaluation Metrics of Counterfactual Story Re-writing
 
 This repository contains the dataset and code accompanying the paper:
 
@@ -97,15 +97,15 @@ The dataset can be **downloaded** from [here](https://drive.google.com/file/d/15
 ```
 
 ## 4. Code 
-The  project is a structured Python application, primarily dealing with data processing, model training, and prediction using a pretrained Flan-T5 model. This is a break down the the functionality of each file and dataflow:
+The  project is a structured Python application primarily dealing with data processing, model training, and prediction using a pre-trained Flan-T5 model. This is a break down the the functionality of each file and dataflow:
 
 <img src="./images/structure.png" alt="structure"/>
 
 ### 4.1  `src/utils/utils.py`
 This file contains utility functions to handle data preprocessing and loading.
 
-- **`count_json_lines(file_path)`:** Counts lines in a JSON file, used for data validation or insight.
-- **`load_first_line_from_json(file_path)`:** Loads the first line from a JSON file, could be used for testing or data inspection.
+- **`count_json_lines(file_path)`:** Counts lines in a JSON file used for data validation or insight.
+- **`load_first_line_from_json(file_path)`:** Loads the first line from a JSON file, which could be used for testing or data inspection.
 - **`preprocess_data(row)`:** Processes each row of data, extracting necessary fields and constructing input-output sequences for model training or inference.
 
   - Input: x1x2yx1xx2 
@@ -135,7 +135,7 @@ Handles data loading:
 
 ### 4.4. `src/models/model_T5.py`
 Defines the model and training procedures:
-The core of this project lies in fine-tuning pre-trained language models, such as Flan-T5, for the task of counterfactual story rewriting. The model is trained to minimise the log-likelihood of generating the actual rewritten endings based on the given story context and a counterfactual premise.
+The core of this project is evaluating the causal reasoning of pre-trained language models, such as Flan-T5, for the task of counterfactual story rewriting and comparing it to GPT. The model is trained to minimise the log-likelihood of generating the actual rewritten endings based on the given story context and a counterfactual premise.
 
 The objective during training is to minimise the log-likelihood of the actual rewritten endings:
 
@@ -143,7 +143,7 @@ The objective during training is to minimise the log-likelihood of the actual re
 L_s(\theta) = \log p_{\theta}(s'_{3:5} \mid S, [s], s_1, s'_{2})
 ```
 
-- **`FlanT5FineTuner`:** A class that wraps around the T5 model for fine-tuning on your specific task. It includes methods for the forward pass, training, validation, and testing steps.
+- **`FlanT5FineTuner`:** A class that wraps around the T5 model for fine-tuning on story re-writting task. It includes methods for the forward pass, training, validation, and testing steps.
 - It also includes methods for generating text (`generate_text`) and calculating custom metrics (`_calculate_metrics`).
 
 ### 4.5. `src/main.py`
@@ -152,7 +152,7 @@ The main executable script for the project:
 - Orchestrates the process by setting up the model, data loaders, and the trainer.
 - Initializes the `FlanT5FineTuner` and prepares the data loaders for training, validation, and testing datasets.
 - Sets up a PyTorch Lightning `Trainer` to manage the training process, including checkpointing and logging.
-- Handles the execution of the training process and optionally testing and validation.
+- Handles the execution of the training process and, optionally, testing and validation.
 
 <img src="./images/structure-1.png" alt="structure1"/>
 
