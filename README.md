@@ -1,4 +1,4 @@
-# Evaluation of Counterfactual Story Rewriting with "Title of Your Paper"
+# Evaluation Metrics of Counterfactual Story Rewriting
 
 This repository contains the dataset and code accompanying the paper:
 
@@ -7,7 +7,7 @@ This repository contains the dataset and code accompanying the paper:
 
 Link to paper: [paper link](#)
 
-## Introduction
+## 1. Introduction
 
 Pearl's causal ladder delineates challenges in AI-driven by data into three distinct levels: observation (termed "seeing"), intervention ("doing"), and counterfactuals ("imagining").
 
@@ -15,7 +15,7 @@ Pearl's causal ladder delineates challenges in AI-driven by data into three dist
 
 **Intervention**: This tier is about executing strategic actions to realize specific goals, such as, "Will taking an aspirin now mitigate my headache?" It employs the do-operator [24] and Causal Bayesian Networks [63] for depicting interventions, for example, illustrating the distribution of Y when X is manipulated to a certain value x, represented as P(Y = y|do(X = x)).
 
-**Counterfactuals**: This tier engages with counterfactual contemplation, pondering over hypothetical scenarios that differ from the actual events, even contradicting them at times, such as, "Had I taken an aspirin, would my headache have ceased?" Counterfactual probabilities are represented as P(Yx = y), signifying the likelihood that "Y would have been y, had X been x." Addressing counterfactual notions necessitates Structural Causal Models (SCMs) [63], which are robust tools as they facilitate precise articulation of concepts across all three tiers [3].
+**Counterfactuals**: This tier engages with counterfactual contemplation, pondering over hypothetical scenarios that differ from the actual events, even contradicting them at times, such as, "Had I taken an aspirin, would my headache have ceased?" Counterfactual probabilities are represented as P(Yx = y), signifying the likelihood that "Y would have been y, had X been x." Addressing counterfactual notions necessitates Structural Causal Models (SCMs) [63], which are robust tools as they facilitate precise articulation of concepts across all three rungs [3].
 
 As one progresses through this hierarchy, the complexity of issues escalates, demanding a profound understanding of causality that transcends observable data. This framework introduces unique challenges and opportunities, especially concerning explainability and its intersection with causal studies. We focus on natural language processing, where deciphering inherent causality is crucial. Such understanding is instrumental for identifying and substituting components within models with coded modules, potentially enhancing their reliability and performance.
 
@@ -26,7 +26,7 @@ Counterfactual reasoning entails the exploration of alternative scenarios that d
 In our tasks, the "counterfactual event" resembles a causal intervention in the story's sequence of events, as conceptualized by Pearl (2000). This requires narrative alterations to be congruent with the general understanding of how the world functions, thereby integrating causal reasoning in a format accessible to those not well-versed in formal causality concepts. This framework also enables us to evaluate the strengths and weaknesses of recent developments in neural language models in terms of counterfactual reasoning. Counterfactual rewriting probes into the causes and effects within a story, potentially necessitating intricate and varied modifications to correspond with the counterfactual event.
 
 
-## Repository Structure
+## 2. Repository Structure
 
 The repository is structured as follows:
 
@@ -42,7 +42,7 @@ TIMETRAVEL/
 │   ├── models/          # Model definitions
 │   │   └── model_T5.py  # T5 model for story rewriting
 │   ├── utils/           # Utility scripts and functions
-│   │   └── helper.py    # Helper functions
+│   │   └── utils.py     # Helper functions
 │   └── data_loader.py   # Data loading and preprocessing scripts
 │
 ├── data/                # Data directory
@@ -68,11 +68,9 @@ TIMETRAVEL/
     └── model_T5.md      # Documentation specific to T5 model
 ```
 
-## Dataset: TimeTravel
+## 3. Dataset: TimeTravel
 
-The TimeTravel dataset is curated to facilitate the training and evaluation of models on the task of counterfactual story rewriting. It contains stories along with their original and counterfactually altered endings.
-
-### Data File Descriptions
+The TimeTravel dataset is curated to facilitate the training and evaluation of models on the task of counterfactual story rewriting. It contains stories along with their original and counterfactually altered endings [cite the orginal paper].
 
 - `train_supervised_small.json`: Supervised training set with human-annotated rewritten endings (28,363 examples).
 - `train_supervised_large.json`: A larger version of the supervised training set (16,752 examples).
@@ -98,41 +96,100 @@ The dataset can be **downloaded** from [here](https://drive.google.com/file/d/15
 }
 ```
 
-## Code 
-
-### Dataflow
-
-<img src="./images/dataflow.png" alt="dataflow"/>
-
-### Files dependencies
+## 4. Code 
+The  project is a structured Python application, primarily dealing with data processing, model training, and prediction using a pretrained Flan-T5 model. This is a break down the the functionality of each file and dataflow:
 
 <img src="./images/structure.png" alt="structure"/>
 
-## Model Training and Evaluation
+### 4.1  `src/utils/utils.py`
+This file contains utility functions to handle data preprocessing and loading.
 
-The core of this project lies in fine-tuning pre-trained language models, such as Flan-T5, for the task of counterfactual story rewriting. The model is trained to maximize the log-likelihood of generating the actual rewritten endings based on the given story context and a counterfactual premise.
+- **`count_json_lines(file_path)`:** Counts lines in a JSON file, used for data validation or insight.
+- **`load_first_line_from_json(file_path)`:** Loads the first line from a JSON file, could be used for testing or data inspection.
+- **`preprocess_data(row)`:** Processes each row of data, extracting necessary fields and constructing input-output sequences for model training or inference.
 
-### Training Objective
+  - Input: x1x2yx1xx2 
+  ({premise} {initial} {original_ending} {separator_token} {initia}{counterfactual})
+  - Output: s'_{3:5} 
+  ({edited ending})
 
-The objective during training is to maximize the log-likelihood of the actual rewritten endings:
+
+      - $p_{\theta}$: The probability distribution parameterized by $(\theta$).
+      - $s'_{3:5}$: The sequence representing the edited ending.
+      - $S$: The complete story (x1x2y).
+      - $[s]$: Separator token.
+      - $s1$: The premise (x1).
+      - $s'_{2}$: The counterfactual input (xx2).
+
+
+- **`collate_fn(batch, tokenizer)`:** Prepares batches of data by tokenizing and structuring them in a format that the model expects.
+
+### 4.2. `src/utils/config.py`
+Defines the configuration parameters for the project, like paths, model configurations, and training parameters. It ensures that these configurations are centralized and can be easily managed or changed.
+
+### 4.3. `src/data_loader.py`
+Handles data loading:
+
+- **`CustomJSONDataset`:** A PyTorch `Dataset` class that reads data from a JSON file and preprocesses it using `preprocess_data` from `utils.py`.
+- **`create_dataloaders`:** Creates PyTorch `DataLoader` objects for batching and efficient data loading during model training or inference.
+
+### 4.4. `src/models/model_T5.py`
+Defines the model and training procedures:
+The core of this project lies in fine-tuning pre-trained language models, such as Flan-T5, for the task of counterfactual story rewriting. The model is trained to minimise the log-likelihood of generating the actual rewritten endings based on the given story context and a counterfactual premise.
+
+The objective during training is to minimise the log-likelihood of the actual rewritten endings:
 
 ```math
 L_s(\theta) = \log p_{\theta}(s'_{3:5} \mid S, [s], s_1, s'_{2})
 ```
 
-where:
-- $p_{\theta}$: The probability distribution parameterized by $(\theta$).
-- $s'_{3:5}$: The sequence representing the edited ending.
-- $S$: The complete story ($x1x2y$).
-- $[s]$: Separator token.
-- $s1$: The premise.
-- $s'_{2}$: The counterfactual input.
+- **`FlanT5FineTuner`:** A class that wraps around the T5 model for fine-tuning on your specific task. It includes methods for the forward pass, training, validation, and testing steps.
+- It also includes methods for generating text (`generate_text`) and calculating custom metrics (`_calculate_metrics`).
 
-For more details on the training process and the setup for counterfactual story rewriting, please refer to our paper.
+### 4.5. `src/main.py`
+The main executable script for the project:
 
-## Evaluation
+- Orchestrates the process by setting up the model, data loaders, and the trainer.
+- Initializes the `FlanT5FineTuner` and prepares the data loaders for training, validation, and testing datasets.
+- Sets up a PyTorch Lightning `Trainer` to manage the training process, including checkpointing and logging.
+- Handles the execution of the training process and optionally testing and validation.
+
+<img src="./images/structure-1.png" alt="structure1"/>
+
+### 5. Data Flow Overview:
+  5.1. **Data Reading & Preprocessing:**
+    - Data is read from JSON files using the `CustomJSONDataset` class.
+    - Data is preprocessed per row using `preprocess_data` which constructs input-output sequences needed by the model.
+
+  5.2. **Data Batching & Tokenization:**
+    - `DataLoader` objects are created for batching.
+    - Batches of data are tokenized and structured properly by `collate_fn` during the data loading process.
+
+  5.3. **Model Training & Validation:**
+    - `FlanT5FineTuner` handles the model training, validation, and testing.
+    - It uses the batches prepared by `DataLoader` and performs forward passes, loss calculation, and backpropagation.
+    - It also generates text and calculates custom metrics like BLEU and ROUGE scores.
+
+  5.4. **Checkpointing & Logging:**
+    - Model checkpoints and logs are managed by PyTorch Lightning's `Trainer`, saving the state of the model and logging metrics for monitoring.
+
+  5.5. **Execution Control:**
+    - `main.py` orchestrates the whole process, ensuring that the model, data, and training utilities are correctly set up and executed.
+
+
+
+<img src="./images/dataflow.png" alt="dataflow"/>
+ 
+
+
+## 6. Model Evaluation
 
 The performance of the models is evaluated based on their ability to generate coherent and contextually relevant story endings that are consistent with the counterfactual premise. Both automated metrics (e.g., BLEU, ROUGE) and human evaluations are used to assess the quality of the rewritten stories.
+
+
+
+
+
 
 ## Citation
 
