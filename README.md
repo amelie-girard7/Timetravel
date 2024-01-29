@@ -74,10 +74,10 @@ The TimeTravel dataset is curated to facilitate the training and evaluation of m
 
 ### Data File Descriptions
 
-- `train_supervised_small.json`: Supervised training set with human-annotated rewritten endings.
-- `train_supervised_large.json`: A larger version of the supervised training set.
-- `dev_data.json`: Development set.
-- `test_data.json`: Test set.
+- `train_supervised_small.json`: Supervised training set with human-annotated rewritten endings (28,363 examples).
+- `train_supervised_large.json`: A larger version of the supervised training set (16,752 examples).
+- `dev_data.json`: Development set (1,871 examples).
+- `test_data.json`: Test set (1,871 examples).
 
 The dataset can be **downloaded** from [here](https://drive.google.com/file/d/150jP5FEHqJD3TmTO_8VGdgqBftTDKn4w/view?usp=sharing).
 
@@ -99,7 +99,7 @@ The dataset can be **downloaded** from [here](https://drive.google.com/file/d/15
 ```
 ## Code Dataflow
 
-<img src="./images/dataflow.png" alt="dataflow" size="50%"/>
+<img src="./images/dataflow.png" alt="dataflow"/>
 
 
 
@@ -116,9 +116,9 @@ L_s(\theta) = \log p_{\theta}(s'_{3:5} \mid S, [s], s_1, s'_{2})
 ```
 
 where:
-- $p_{\theta}$: The probability distribution parameterized by \(\theta\).
+- $p_{\theta}$: The probability distribution parameterized by $(\theta$).
 - $s'_{3:5}$: The sequence representing the edited ending.
-- $S$: The complete story (x1x2y).
+- $S$: The complete story ($x1x2y$).
 - $[s]$: Separator token.
 - $s1$: The premise.
 - $s'_{2}$: The counterfactual input.
