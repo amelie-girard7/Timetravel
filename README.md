@@ -76,7 +76,6 @@ The TimeTravel dataset is curated to facilitate the training and evaluation of m
 
 - `train_supervised_small.json`: Supervised training set with human-annotated rewritten endings.
 - `train_supervised_large.json`: A larger version of the supervised training set.
-- `train_unsupervised.json`: Unsupervised training set.
 - `dev_data.json`: Development set.
 - `test_data.json`: Test set.
 
@@ -98,6 +97,11 @@ The dataset can be **downloaded** from [here](https://drive.google.com/file/d/15
   ]
 }
 ```
+## Code Dataflow
+
+<img src="./images/dataflow.png" alt="dataflow" size="50%"/>
+
+
 
 ## Model Training and Evaluation
 

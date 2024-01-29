@@ -1,0 +1,5 @@
+digraph "classes_Timetravel" {
+rankdir=BT
+charset="utf-8"
+"src.data_loader.CustomJSONDataset" [color="black", fontcolor="black", label=<{CustomJSONDataset|processed_data<br ALIGN="LEFT"/>|__getitem__(idx)<br ALIGN="LEFT"/>__init__(file_path, preprocess_fn)<br ALIGN="LEFT"/>__len__()<br ALIGN="LEFT"/>}>, shape="record", style="solid"];
+}

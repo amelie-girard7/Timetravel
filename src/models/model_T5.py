@@ -92,7 +92,7 @@ class FlanT5FineTuner(pl.LightningModule):
             self.log('bleu', bleu_score, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
             # Calculating ROUGE scores
-            rouge_scores = {key: self.rouge_scorer.score(decoded_targets, decoded_pred) for key in self.rouge_scorer.metrics}
+            rouge_scores = {key: self.rouge_scorer.score(decoded_targets, decoded_preds) for key in self.rouge_scorer.metrics}
             for key, scores in rouge_scores.items():
                 self.log(f'rouge_{key}', scores.fmeasure, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         except Exception as e:
