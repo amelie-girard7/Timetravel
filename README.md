@@ -1,4 +1,4 @@
-# Evaluation Metrics of Counterfactual Story Re-writing
+# Evaluation Metrics for Counterfactual Story Re-writing
 
 This repository contains the dataset and code accompanying the paper:
 
@@ -7,7 +7,35 @@ This repository contains the dataset and code accompanying the paper:
 
 Link to paper: [paper link](#)
 
-## 1. Introduction
+
+## Table of Contents
+1. [Project Objective](#project-objective)
+2. [Introduction](#introduction)
+3. [Repository Structure](#repository-structure)
+4. [Dataset: TimeTravel](#dataset-timetravel)
+5. [Code](#code)
+    - [5.1 src/utils/utils.py](#51-srcutilsutilspy)
+    - [5.2 src/utils/config.py](#52-srcutilsconfigpy)
+    - [5.3 src/data_loader.py](#53-srcdataloaderpy)
+    - [5.4 src/models/model_T5.py](#54-srcmodelsmodel_t5py)
+    - [5.5 src/main.py](#55-srcmainpy)
+6. [Data Flow Overview](#data-flow-overview)
+7. [Evaluation Metrics](#evaluation-metrics)
+    - [7.1 ROUGE](#71-rouge)
+    - [Code Implementation](#code-implementation)
+8. [Citation](#citation)
+9. [References](#references)
+10. [Contact](#contact)
+
+## Project Objective:
+
+The primary aim of this project is to rigorously evaluate the performance of models specialized in counterfactual story rewriting. The evaluation process begins with employing established metrics such as BLEU and ROUGE, followed by more context-aware metrics like BERT and BART. These metrics provide a quantitative foundation for assessing the model's performance. However, given the inherent complexity and nuanced nature of counterfactual reasoning, the project also seeks to transcend these traditional metrics. It aims to develop and implement a linguistically driven evaluative approach. This approach will focus on analyzing the linguistic differences between the counterfactual and the generated endings and between the initial and the generated endings. The intent is to explore the linguistic transformations and narrative shifts brought forth by the counterfactual intervention, thereby offering a deeper, more nuanced understanding of the model's capabilities in crafting coherent and contextually relevant counterfactual narratives.
+
+In our tasks, the concept of a "counterfactual event" serves as a pivotal point that triggers alterations within the story's sequence of events. This mirrors the causal interventions as described by Pearl (2000). The introduction of a counterfactual event necessitates narrative modifications that must align with the general, widely accepted understanding of how events unfold in the real world.
+
+Counterfactual rewriting is not merely about altering the narrative; it's about understanding and narratively weaving the intricate causes and effects within a story. This task often requires detailed and diverse adjustments in the narrative to ensure that the new trajectory of the story resonates authentically with the introduced counterfactual element. The challenge is to ensure that these narrative alterations are not just plausible but also retain a strong coherence with the original premise, thereby reflecting a deep and nuanced understanding of the narrative's causal structure.
+
+## Introduction
 
 Pearl's causal ladder delineates challenges in AI-driven by data into three distinct Rungs: observation (termed "seeing"), intervention ("doing"), and counterfactuals ("imagining").
 
@@ -26,7 +54,7 @@ Counterfactual reasoning entails the exploration of alternative scenarios that d
 In our tasks, the "counterfactual event" resembles a causal intervention in the story's sequence of events, as conceptualized by Pearl (2000). This requires narrative alterations to be congruent with the general understanding of how the world functions, thereby integrating causal reasoning in a format accessible to those not well-versed in formal causality concepts. This framework also enables us to evaluate the strengths and weaknesses of recent developments in neural language models in terms of counterfactual reasoning. Counterfactual rewriting probes into the causes and effects within a story, potentially necessitating intricate and varied modifications to correspond with the counterfactual event.
 
 
-## 2. Repository Structure
+## Repository Structure
 
 The repository is structured as follows:
 
@@ -68,7 +96,7 @@ TIMETRAVEL/
     └── model_T5.md      # Documentation specific to T5 model
 ```
 
-## 3. Dataset: TimeTravel
+## Dataset: TimeTravel
 
 The TimeTravel dataset is curated to facilitate the training and evaluation of models on the task of counterfactual story rewriting. It contains stories along with their original and counterfactually altered endings [cite the orginal paper].
 
@@ -79,6 +107,8 @@ The TimeTravel dataset is curated to facilitate the training and evaluation of m
 
 The dataset can be **downloaded** from [here](https://drive.google.com/file/d/150jP5FEHqJD3TmTO_8VGdgqBftTDKn4w/view?usp=sharing).
 
+### Data Example
+
 The dataset includes stories that have been modified based on a counterfactual change. The aim is to evaluate the models based on their ability to adapt the story ending to reflect this change. Here's how this looks in the dataset:
 
 - **Premise**: The initial setup of the story (e.g., "Andrea wanted a picture of her jumping.").
@@ -86,8 +116,6 @@ The dataset includes stories that have been modified based on a counterfactual c
 - **Counterfactual**: The hypothetical or counterfactual change introduced into the story (e.g., "She asked her friend to draw one.").
 - **Original Ending**: The ending that follows from the initial setup without the counterfactual change (e.g., "Then, she jumped in the air...").
 - **Edited Ending**: The model-generated ending that should reflect the counterfactual change (e.g., "Then, she jumped in the air to demonstrate...").
-
-### Data Example
 
 ```json
 {
@@ -104,12 +132,12 @@ The dataset includes stories that have been modified based on a counterfactual c
 }
 ```
 
-## 4. Code 
+## Code 
 The  project is a structured Python application primarily dealing with data processing, model training, and prediction using a pre-trained Flan-T5 model. This is a break down the the functionality of each file and dataflow:
 
 <img src="./images/structure.png" alt="structure"/>
 
-### 4.1  `src/utils/utils.py`
+### `src/utils/utils.py`
 This file contains utility functions to handle data preprocessing and loading.
 
 - **`count_json_lines(file_path)`:** Counts lines in a JSON file used for data validation or insight.
@@ -132,16 +160,16 @@ This file contains utility functions to handle data preprocessing and loading.
 
 - **`collate_fn(batch, tokenizer)`:** Prepares batches of data by tokenizing and structuring them in a format that the model expects.
 
-### 4.2. `src/utils/config.py`
+### `src/utils/config.py`
 Defines the configuration parameters for the project, like paths, model configurations, and training parameters. It ensures that these configurations are centralized and can be easily managed or changed.
 
-### 4.3. `src/data_loader.py`
+### `src/data_loader.py`
 Handles data loading:
 
 - **`CustomJSONDataset`:** A PyTorch `Dataset` class that reads data from a JSON file and preprocesses it using `preprocess_data` from `utils.py`.
 - **`create_dataloaders`:** Creates PyTorch `DataLoader` objects for batching and efficient data loading during model training or inference.
 
-### 4.4. `src/models/model_T5.py`
+### `src/models/model_T5.py`
 Defines the model and training procedures:
 The core of this project is evaluating the causal reasoning of pre-trained language models, such as Flan-T5, for the task of counterfactual story rewriting and comparing it to GPT. The model is trained to minimise the log-likelihood of generating the actual rewritten endings based on the given story context and a counterfactual premise.
 
@@ -154,7 +182,7 @@ L_s(\theta) = \log p_{\theta}(s'_{3:5} \mid S, [s], s_1, s'_{2})
 - **`FlanT5FineTuner`:** A class that wraps around the T5 model for fine-tuning on story re-writting task. It includes methods for the forward pass, training, validation, and testing steps.
 - It also includes methods for generating text (`generate_text`) and calculating custom metrics (`_calculate_metrics`).
 
-### 4.5. `src/main.py`
+### `src/main.py`
 The main executable script for the project:
 
 - Orchestrates the process by setting up the model, data loaders, and the trainer.
@@ -164,7 +192,7 @@ The main executable script for the project:
 
 <img src="./images/structure-1.png" alt="structure1"/>
 
-### 5. Data Flow Overview:
+## Data Flow Overview:
   5.1. **Data Reading & Preprocessing:**
     - Data is read from JSON files using the `CustomJSONDataset` class.
     - Data is preprocessed per row using `preprocess_data` which constructs input-output sequences needed by the model.
@@ -189,7 +217,7 @@ The main executable script for the project:
  
 
 
-## 6. Evaluation metrics
+## Evaluation metrics
 
 The performance of the models is evaluated based on their ability to generate coherent and contextually relevant story endings that are consistent with the counterfactual premise. Both automated metrics (e.g., BLEU, ROUGE, BERT, BART) and human evaluations are used to assess the quality of the rewritten stories.
 
@@ -210,7 +238,7 @@ The dataset includes stories that have been modified based on a counterfactual c
 }
 ```
 
-### 6.1 ROUGE
+### ROUGE
 
 ROUGE is used to compare the **Edited Ending** (generated by the model) with the **Original Ending** (which serves as a sort of 'baseline' or 'reference'). The comparison helps in assessing:
 
@@ -227,7 +255,7 @@ Here's what the ROUGE metrics can tell:
     - Focuses on the longest common subsequence, reflecting the structural coherence and flow of the Edited Ending relative to the Original Ending.
     - Indicates how well the Edited Ending maintains a logical and readable structure, considering the changes introduced by the Counterfactual.
 
-### Code implementation
+#### Code Implementation
 
 1. **Prepare the Texts**:
     - Extract the **Edited Ending** as the generated text (from your model's output).
