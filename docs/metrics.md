@@ -1,8 +1,8 @@
 This is an explantion of the different metrics used in Story Rewriting
 
 ## Table of Contents
-1. [Bleu Metric in Story Rewriting](#Bleu)
-2. [Rouge Metric in Story Rewriting](#Rouge)
+1. [Bleu (BiLingual Evaluation Understudy) ](#Bleu)
+2. [Rouge (Recall-Oriented Understudy for Gisting Evaluation)](#Rouge)
 3. [Bert](#Bert)
 4. [Bart](#Bart)
 
@@ -45,7 +45,7 @@ In the remaining section we will use as example a  story that revolves around a 
 <img src="../images/metric.png" alt="metric"/>
 
 
-## BLEU
+## Bleu (BiLingual Evaluation Understudy) 
 The essence of BLEU is to provide a single numerical score that reflects the quality of the generated text by comparing it to one or more reference texts. For instance, if we have a story ending rewritten by a model, we want to know how closely it resembles the original or a human-authored ending.
 
 BLEU evaluates the quality of text by comparing n-grams of the model-generated ending ("edited_ending") to the n-grams of the reference text ("original ending" ). An n-gram is simply a sequence of 'n' consecutive words. For example, "she jumped" is a bigram (2-gram), while "she jumped in" is a trigram (3-gram).
@@ -81,14 +81,13 @@ The BLEU score output includes individual precision scores for each n-gram and a
 
 while BLEU can offer insights into the lexical accuracy and word order of rewritten stories, ROUGE complements it by providing a more comprehensive evaluation of recall, narrative coherence, and the inclusion of crucial plot elements.
 
-## Rouge
+## Rouge (Recall-Oriented Understudy for Gisting Evaluation)
 ROUGE provides a way to quantify how closely a generated text (in this case, an "edited ending") mirrors a Human reference text ("original ending"). ROUGE compares the n-grams (chunks of n consecutive words) of a generated text to the n-grams of reference texts. It helps us understand how much of the content and structure of the reference text is captured in the generated text. We typically compare the "edited ending"(generated text) to the "original ending"(reference text) to evaluate:
 
 - The model's ability to incorporate the counterfactual change effectively.
 - How well the model maintains narrative coherence and contextual relevance.
 
 Let's explore how this applies to our example and how ROUGE can be used to assess the quality of a story rewritten by a model like T5.
-
 The metric assesses how well the edited ending reflects the counterfactual change and maintains coherence, fluency, and relevance. It's based on the overlap of n-grams between the generated and reference texts.
 
 1. **ROUGE-1 (Unigram Overlap)**:
@@ -198,12 +197,12 @@ Iterative Improvement: Use these metrics to identify strengths and weaknesses in
 
 
 
-Conclusion
+# Conclusion
 
 Metrics need to account not just for linguistic accuracy but also for narrative coherence, contextual relevance, and the ability to capture the nuances introduced by counterfactual changes or story transformations.
 - **BLEU and ROUGE Variants**: Provide insights into textual similarity at different granularities, but fundamentally focus on surface-level n-gram overlaps. SACRE variants aim to standardize and improve computation, considering tokenization and linguistic nuances.
 - **Semantic Metrics (BERTScore and BARTScore)**: Leverage advanced transformer models to understand semantic and narrative structures, suitable for story rewriting tasks where capturing underlying narrative and semantic changes is crucial.
-- **SACRE Metrics**: Focus on refining and standardizing computation, addressing tokenization, and linguistic subtleties, making these metrics more reliable and consistent, especially in comparative studies or scenarios with diverse linguistic inputs.
+
 
 
 
