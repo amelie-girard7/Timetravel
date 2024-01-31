@@ -78,52 +78,8 @@ BLEU calculates the geometric mean of the precision scores across different n-gr
 
 The BLEU score output includes individual precision scores for each n-gram and an overall BLEU score. A higher BLEU score implies that the generated text is more similar to the reference, suggesting better quality rewriting in our context.
 
-### Challenges with BLEU and why we need Rouge 
 
-In the context of story rewriting, BLEU (BiLingual Evaluation Understudy) has certain limitations which necessitate the use of complementary metrics like ROUGE (Recall-Oriented Understudy for Gisting Evaluation). Here are the key limitations and reasons for using ROUGE alongside BLEU:
-
-### BLEU's Limitations and Why Rouge:
-
-1. **Lexical Matching:**
-   - BLEU primarily relies on exact lexical matches between the generated text and the reference texts. It doesn't consider synonyms or paraphrasing, which are often prevalent in creative story rewriting.
-   
-2. **Semantic Understanding:**
-   - BLEU does not capture the semantic meaning or the intent behind the words. Two sentences can share no common n-grams yet have the same meaning, which BLEU would fail to recognize.
-
-3. **Sensitivity to Reference Quality:**
-   - The quality and variety of reference endings influence BLEU scores. If the references do not adequately represent different acceptable rewrites, BLEU's effectiveness diminishes.
-
-4. **Handling of Longer Sequences:**
-   - BLEU is biased towards shorter texts since the precision metric it uses does not penalize brief translations that omit content. This can be problematic in story rewriting, where narrative completeness is important.
-
-5. **Word Order:**
-   - While BLEU considers word order to some extent through n-grams, it may not fully capture the narrative flow and coherence in a rewritten story.
-
-6. **Lack of Contextual Evaluation:**
-   - BLEU does not evaluate how well the rewritten text fits into the broader context of the story, especially when a counterfactual element introduces a significant change.
-
-### Why Use ROUGE:
-
-1. **Recall-Focused:**
-   - ROUGE is recall-focused, meaning it assesses how much of the reference content is captured in the generated text. This is crucial in story rewriting, where retaining the core elements of the original story is often essential.
-
-2. **Sequence-Based Evaluation:**
-   - ROUGE-L, which measures the longest common subsequence, can better capture the flow and fluency of a story, as it does not require consecutive word matches.
-
-3. **Handling of Paraphrases:**
-   - ROUGE can be more tolerant of paraphrasing and synonym use, which are common in story rewriting when the narrative needs to be adapted to new contexts or counterfactual changes.
-
-4. **Holistic Understanding:**
-   - ROUGE scores can provide a more holistic view of the rewritten story's quality by considering the entire content rather than just fragmented pieces.
-
-5. **Flexibility with Rewriting:**
-   - Since story rewriting may involve significant rephrasing and restructuring, ROUGE's ability to handle these aspects makes it more suitable for this task.
-
-6. **Evaluating Narrative Consistency:**
-   - ROUGE can help evaluate the consistency of the narrative when the story is altered due to a counterfactual premise, ensuring that the new ending is coherent with the rest of the story.
-
-
-while BLEU can offer insights into the lexical accuracy and word order of rewritten stories, ROUGE complements it by providing a more comprehensive evaluation of recall, narrative coherence, and the inclusion of crucial plot elements. Together, they offer a more rounded approach to assessing the quality of story rewriting in the presence of counterfactual elements.
+while BLEU can offer insights into the lexical accuracy and word order of rewritten stories, ROUGE complements it by providing a more comprehensive evaluation of recall, narrative coherence, and the inclusion of crucial plot elements.
 
 ## Rouge
 ROUGE provides a way to quantify how closely a generated text (in this case, an "edited ending") mirrors a Human reference text ("original ending"). ROUGE compares the n-grams (chunks of n consecutive words) of a generated text to the n-grams of reference texts. It helps us understand how much of the content and structure of the reference text is captured in the generated text. We typically compare the "edited ending"(generated text) to the "original ending"(reference text) to evaluate:
