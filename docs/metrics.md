@@ -1,30 +1,27 @@
-This is an explantion of the different metrics used in Story Rewriting
+Evaluation metric for couterfactual Story Rewriting
 
 ## Table of Contents
-1. [Bleu (BiLingual Evaluation Understudy) ](#Bleu)
-2. [Rouge (Recall-Oriented Understudy for Gisting Evaluation)](#Rouge)
-3. [Bert](#Bert)
-4. [Bart](#Bart)
+1. [Introduction](#Introduction)
+2. [Bleu (BiLingual Evaluation Understudy) ](#Bleu)
+3. [Rouge (Recall-Oriented Understudy for Gisting Evaluation)](#Rouge)
+4. [Word Mover’s Distance](#Word-Mover’s-Distance)
+5. [Word Mover’s Similarity](#Word-Mover’s-Similarity)
+6. [Sentence and Word Mover’s Similarity](#Sentence-and-Word-Mover’s-Similarity)
+7. [BERTScore](#BERTScore)
+8. [BART](#Bart)
+9. [Comparaison of the Evaluation Metrics](#Comparaison-of-the-Evaluation-Metrics)
 
+# Introduction 
 
-When it comes to evaluating Natural Language Processing (NLP) models, we often rely on metrics like accuracy or F1 score for tasks that have clear-cut right or wrong answers. However, assessing the quality of generated text, such as rewritten stories, requires a more nuanced approach. This is where the BLEU (BiLingual Evaluation Understudy), ROUGE (Recall-Oriented Understudy for Gisting Evaluation)  metric comes into play.
+In the field of Natural Language Processing (NLP), metrics such as accuracy or F1 score are standard for evaluating tasks with clear-cut answers. However, the evaluation of text generation, particularly tasks like story rewriting, demands a more sophisticated and nuanced approach, necessitating a focus on semantic metrics. This need is further underscored by research indicating the limitations of automatic metrics in text generation tasks, especially those involving intricate semantic challenges such as counterfactual rewriting (Wiseman et al., 2017; Liu et al., 2016). 
 
-## Evaluation Metrics for Story Rewriting
+The aim of this research is to not only experiment with existing metrics but also to explore and possibly establish new metrics that can more accurately capture the nuances of text generation. Overlap metrics like BLEU (Papineni et al., 2002) and ROUGE-L (Lin, 2004), which concentrate on the textual overlap between the generated text and reference sequences, are traditional mainstays. BLEU calculates overlapping n-grams, whereas ROUGE-L is focused on the longest common subsequence (LCS), often utilized for summarization tasks.
 
-| Metric            | Variant           | Pros                                                                                                 | Cons                                                                                                                             | Details |
-|-------------------|-------------------|------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|---------|
-| **BLEU**          |                   |                                                                                                      |                                                                                                                                  |         |
-|                   | BLEU-n            | - Measures precision of n-grams.<br>- Useful for ensuring local linguistic accuracy.                 | - Ignores semantic meaning beyond surface n-grams.<br>- Doesn't account for fluency or global narrative structure.                | **Precision (P)**: $\frac{\sum_{\text{n-gram in edited}} \min(\text{count in edited}, \text{count in reference})}{\sum_{\text{n-gram in edited}} \text{count}}$<br>**BLEU score**: $\text{BP} \times \exp(\sum_{n=1}^{N} w_n \log p_n)$<br>where BP is brevity penalty, $p_n$ is precision for n-grams, and $w_n$ is weight for each n-gram. |
-|                   | SACREBLEU         | - Standardized BLEU implementation.<br>- Mitigates issues with tokenization and comparability.      | - Doesn't address core limitations of BLEU, like handling of semantics or narrative coherence.                                    | Ensures comparability by standardizing BLEU computation and handling tokenization. |
-| **ROUGE**         |                   |                                                                                                      |                                                                                                                                  |         |
-|                   | ROUGE-1           | - Measures overlap of unigrams.<br>- Good for assessing content retention.                           | - Ignores word order.<br>- Can't capture complex narrative structures.<br>- Doesn't account for synonyms or paraphrasing.         | **Recall (R)**: $\frac{\sum_{\text{unigram in edited}} \min(\text{count in edited}, \text{count in original})}{\sum_{\text{unigram in original}} \text{count}}$ |
-|                   | ROUGE-2           | - Measures bigram overlap.<br>- Better at capturing phrases and local narrative structures.         | - More sensitive to word order changes.<br>- May miss the broader narrative context.                                             | **Recall (R)**: $\frac{\sum_{\text{bigram in edited}} \min(\text{count in edited}, \text{count in original})}{\sum_{\text{bigram in original}} \text{count}}$ |
-|                   | ROUGE-L           | - Considers longest common subsequence.<br>- Reflects sentence-level structure and coherence.        | - Might not fully capture the narrative style or complex story transformations.                                                   | **Recall (R)**: $\frac{\text{LCS(edited, original)}}{\text{length(original)}}$<br>**Precision (P)**: $\frac{\text{LCS(edited, original)}}{\text{length(edited)}}$<br>**F1-Score**: $\frac{2 \times P \times R}{P+R}$ |
-|                   | SACREROUGE        | - Provides a standardized implementation.<br>- Addresses some tokenization and comparison issues.    | - Still limited by the inherent constraints of the ROUGE metric (surface-level analysis).                                         | Standardizes and refines ROUGE computation. |
-| **BERT**          | BERTScore         | - Leverages contextual embeddings.<br>- Captures semantic similarity and paraphrasing.<br>- More robust to diverse linguistic expressions. | - Computationally more intensive.<br>- May require fine-tuning or adaptation for specific narrative styles in story rewriting. | Computes cosine similarity between BERT embeddings of the words in the generated and reference texts, providing a score that captures semantic meanings. |
-| **BART**          | BARTScore         | - Can consider both precision and recall aspects.<br>- Effective for text generation tasks like story rewriting.<br>- Accounts for semantic coherence and fluency. | - Computationally intensive.<br>- Performance can depend on the quality of the underlying model.                                  | Utilizes the BART model's capabilities for both generation and evaluation, offering a holistic assessment of text quality based on both content and structure. |
+To address the limitations of BLEU and ROUGE, which rely on exact string matching and may not fully capture semantic nuances or effective paraphrasing, model-based metrics have been introduced. Word Mover’s Distance (WMD, Kusner et al., 2015) represents one such metric, defining the distance between two texts as the minimal cost of transforming one sequence’s word embeddings to match the other’s. Extensions of WMD, such as Word Mover’s Similarity (WMS, Kilickaya et al., 2017) and Sentence + Word Mover’s Similarity (S+WMS, Clark et al., 2019), measure text similarity by considering both word and sentence embeddings. Moreover, BERTScore (Zhang et al., 2019) enhances semantic evaluation by computing the cosine similarity between sentences encoded by BERT, showing higher correlation with human judgments than its predecessors.
 
-In the remaining section we will use as example a  story that revolves around a character, Andrea, who initially wants a picture of herself jumping. However, a counterfactual change is introduced where she asks her friend to draw it instead. The model then generates an "edited ending" that should reflect this counterfactual scenario.
+These advanced metrics, which offer a refined perspective for evaluating the nuanced task of text generation, are at the heart of our research. The goal is to thoroughly assess these existing metrics, understand their strengths and shortcomings inthe timeTravel data scenarios, and contribute to the development of even more sophisticated metrics that can accurately assess the quality of generated text, particularly in tasks requiring a deep understanding of narrative and context.
+
+In the next sections we will dive into each of these metrics. We will use as example a  story that revolves around a character, Andrea, who initially wants a picture of herself jumping. However, a counterfactual change is introduced where she asks her friend to draw it instead. The model then generates an "edited ending" that should reflect this counterfactual scenario.
 
 ```json
 {
@@ -175,10 +172,43 @@ Iterative Improvement: Use these metrics to identify strengths and weaknesses in
 - **ROUGE-L and ROUGE-LSUM** underscores the model's competence in maintaining structural coherence and narrative logic, crucial for the story's authenticity and engagement.
 
 
+
+## Word Mover’s Distance
+TODO
+
+## Word Mover’s Similarity
+TODO
+
+## Sentence and Word Mover’s Similarity
+TODO
+
+
 ## Bert
+TODO
+
 ## Bart
+TODO
 
 
+# Comparaison of the Evaluation Metrics
+
+| Metric                  | Variant           | Pros                                                                                                                     | Cons                                                                                                                            | Details |
+|-------------------------|-------------------|--------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|---------|
+| **BLEU**                |                   |                                                                                                                          |                                                                                                                                  |         |
+|                         | BLEU-n (Papineni et al., 2002)| - Measures precision of n-grams.<br>- Useful for ensuring local linguistic accuracy.                                     | - Ignores semantic meaning beyond surface n-grams.<br>- Doesn't account for fluency or global narrative structure.                | **Precision (P)**: $\frac{\sum_{\text{n-gram in edited}} \min(\text{count in edited}, \text{count in reference})}{\sum_{\text{n-gram in edited}} \text{count}}$<br>**BLEU score**: $\text{BP} \times \exp(\sum_{n=1}^{N} w_n \log p_n)$<br>where BP is brevity penalty, $p_n$ is precision for n-grams, and $w_n$ is weight for each n-gram. |
+|                         | SACREBLEU         | - Standardized BLEU implementation.<br>- Mitigates issues with tokenization and comparability.                           | - Doesn't address core limitations of BLEU, like handling of semantics or narrative coherence.                                    | Ensures comparability by standardizing BLEU computation and handling tokenization. |
+| **ROUGE**               |                   |                                                                                                                          |                                                                                                                                  |         |
+|                         | ROUGE-1           | - Measures overlap of unigrams.<br>- Good for assessing content retention.                                               | - Ignores word order.<br>- Can't capture complex narrative structures.<br>- Doesn't account for synonyms or paraphrasing.         | **Recall (R)**: $\frac{\sum_{\text{unigram in edited}} \min(\text{count in edited}, \text{count in original})}{\sum_{\text{unigram in original}} \text{count}}$ |
+|                         | ROUGE-2           | - Measures bigram overlap.<br>- Better at capturing phrases and local narrative structures.                             | - More sensitive to word order changes.<br>- May miss the broader narrative context.                                             | **Recall (R)**: $\frac{\sum_{\text{bigram in edited}} \min(\text{count in edited}, \text{count in original})}{\sum_{\text{bigram in original}} \text{count}}$ |
+|                         | ROUGE-L (Lin, 2004)| - Considers longest common subsequence.<br>- Reflects sentence-level structure and coherence.                            | - Might not fully capture the narrative style or complex story transformations.                                                   | **Recall (R)**: $\frac{\text{LCS(edited, original)}}{\text{length(original)}}$<br>**Precision (P)**: $\frac{\text{LCS(edited, original)}}{\text{length(edited)}}$<br>**F1-Score**: $\frac{2 \times P \times R}{P+R}$ |
+|                         | SACREROUGE        | - Provides a standardized implementation.<br>- Addresses some tokenization and comparison issues.                        | - Still limited by the inherent constraints of the ROUGE metric (surface-level analysis).                                         | Standardizes and refines ROUGE computation. |
+| **Word Mover’s**        | WMD (Kusner et al., 2015) | - Measures minimal cost of transforming one sequence’s word embeddings to the other’s.<br>- Effective for semantic analysis. | - May require significant computational resources for word embedding calculations.                                                | Defines text distance as the minimum cost to transform one sequence's word embeddings to another's. |
+|                         | WMS (Kilickaya et al., 2017)| - Measures text similarity by taking the negative exponential of Word Mover's Distance.                                    | - Similar to WMD, can be computationally intensive.                                                                              | Extends WMD to a similarity measure by using the negative exponential of the distance. |
+|                         | S+WMS (Clark et al., 2019) | - Extends WMS for longer texts by incorporating sentence representations with word embeddings.                           | - Complexity increases with the inclusion of sentence representations.                                                           | Combines sentence and word embeddings to measure similarity for multi-sentence texts. |
+| **BERT**                | BERTScore (Zhang et al., 2019)  | - Leverages contextual embeddings.<br>- Captures semantic similarity and paraphrasing.<br>- More robust to diverse linguistic expressions. | - Computationally more intensive.<br>- May require fine-tuning or adaptation for specific narrative styles in story rewriting. | Computes cosine similarity between BERT embeddings of the words in the generated and reference texts, providing a score that captures semantic meanings. |
+| **BART**                | BARTScore         | - Can consider both precision and recall aspects.<br>- Effective for text generation tasks like story rewriting.<br>- Accounts for semantic coherence and fluency. | - Computationally intensive.<br>- Performance can depend on the quality of the underlying model.                                  | Utilizes the BART model's capabilities for both generation and evaluation, offering a holistic assessment of text quality based on both content and structure. |
+
+   
 
 # Conclusion
 
@@ -190,9 +220,11 @@ Metrics need to account not just for linguistic accuracy but also for narrative 
 
 
 
-Reference:
+# Reference:
 What is rouge metric?
 https://www.youtube.com/watch?v=TMshhnrEXlg
 
 What is the Bleu metric
 https://www.youtube.com/watch?v=M05L1DhFqcw&t=196s
+
+TODO: reference the timeTravel paper
