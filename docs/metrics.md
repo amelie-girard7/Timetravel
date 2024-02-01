@@ -23,8 +23,6 @@ When it comes to evaluating Natural Language Processing (NLP) models, we often r
 |                   | SACREROUGE        | - Provides a standardized implementation.<br>- Addresses some tokenization and comparison issues.    | - Still limited by the inherent constraints of the ROUGE metric (surface-level analysis).                                         | Standardizes and refines ROUGE computation. |
 | **BERT**          | BERTScore         | - Leverages contextual embeddings.<br>- Captures semantic similarity and paraphrasing.<br>- More robust to diverse linguistic expressions. | - Computationally more intensive.<br>- May require fine-tuning or adaptation for specific narrative styles in story rewriting. | Computes cosine similarity between BERT embeddings of the words in the generated and reference texts, providing a score that captures semantic meanings. |
 | **BART**          | BARTScore         | - Can consider both precision and recall aspects.<br>- Effective for text generation tasks like story rewriting.<br>- Accounts for semantic coherence and fluency. | - Computationally intensive.<br>- Performance can depend on the quality of the underlying model.                                  | Utilizes the BART model's capabilities for both generation and evaluation, offering a holistic assessment of text quality based on both content and structure. |
-| **SACRE**         | SACREBLEU         | - Provides a more accurate and standardized evaluation.<br>- Addresses tokenization and language-specific nuances. | - May not fully address narrative coherence in story rewriting.<br>- Computationally more intensive than traditional BLEU.          | Enhances BLEU by providing a standardized framework, ensuring consistent tokenization and handling of linguistic variations, making it more reliable for comparing translations or generated texts. |
-
 
 In the remaining section we will use as example a  story that revolves around a character, Andrea, who initially wants a picture of herself jumping. However, a counterfactual change is introduced where she asks her friend to draw it instead. The model then generates an "edited ending" that should reflect this counterfactual scenario.
 
@@ -45,13 +43,12 @@ In the remaining section we will use as example a  story that revolves around a 
 <img src="../images/metric.png" alt="metric"/>
 
 
-## Bleu (BiLingual Evaluation Understudy) 
+### Bleu (BiLingual Evaluation Understudy) 
 The essence of BLEU is to provide a single numerical score that reflects the quality of the generated text by comparing it to one or more reference texts. For instance, if we have a story ending rewritten by a model, we want to know how closely it resembles the original or a human-authored ending.
 
 BLEU evaluates the quality of text by comparing n-grams of the model-generated ending ("edited_ending") to the n-grams of the reference text ("original ending" ). An n-gram is simply a sequence of 'n' consecutive words. For example, "she jumped" is a bigram (2-gram), while "she jumped in" is a trigram (3-gram).
 
-### Unigram Precision
-
+**Unigram Precision**
 One aspect of BLEU is unigram precision, which counts the number of single words from the generated text that appear in the reference text, normalized by the total number of words in the generated text.
 
 
@@ -62,20 +59,16 @@ For the above story, if the model-generated ending ("edited_ending") has 30 word
   
 - This means 60% of the words in the edited ending are found in the original ending, indicating a certain level of verbatim content retention.
 
-### Modified Precision
-
+**Modified Precision**
 BLEU addresses the issue of repetitive patterns by using a modified precision. It clips the count of each word to the maximum number it appears in the reference. This prevents over-counting and rewards diversity in the generated text.
 
-### Word Ordering
-
+**Word Ordering**
 BLEU considers higher-order n-grams to account for the order of words. For instance, if "jumped in the air" appears in both the original and edited endings, it contributes to a higher BLEU score than just matching individual words like "jumped" or "air".
 
-### BLEU Score Calculation
-
+**BLEU Score Calculation**
 BLEU calculates the geometric mean of the precision scores across different n-grams, often up to 4-grams. For our example, the BLEU score would take into account the precision of unigrams, bigrams, trigrams, and 4-grams between the edited and original endings.
 
-### Output and Interpretation
-
+**Output and Interpretation**
 The BLEU score output includes individual precision scores for each n-gram and an overall BLEU score. A higher BLEU score implies that the generated text is more similar to the reference, suggesting better quality rewriting in our context.
 
 
@@ -91,13 +84,11 @@ Let's explore how this applies to our example and how ROUGE can be used to asses
 The metric assesses how well the edited ending reflects the counterfactual change and maintains coherence, fluency, and relevance. It's based on the overlap of n-grams between the generated and reference texts.
 
 1. **ROUGE-1 (Unigram Overlap)**:
-Measures the overlap of individual words between the "edited ending" and the "original ending".
+    Measures the overlap of individual words between the "edited ending" and the "original ending".
+    Example Result: Let's say the ROUGE-1 score is high. This indicates that many individual words from the "original ending" are also present in the "edited ending". 
+    In our case, words like "she", "jumped", "the", "air", "picture", "coming", "out", "wrong", "took", "times", "get", "right" are present in both.
 
-Example Result: Let's say the ROUGE-1 score is high. This indicates that many individual words from the "original ending" are also present in the "edited ending". 
-
-In our case, words like "she", "jumped", "the", "air", "picture", "coming", "out", "wrong", "took", "times", "get", "right" are present in both.
-
-A high ROUGE-1 score suggests that the "edited ending" retains significant content from the "original ending". However, it doesn't necessarily indicate that the counterfactual change has been effectively integrated or that the story's flow and structure are coherent.
+    A high ROUGE-1 score suggests that the "edited ending" retains significant content from the "original ending". However, it doesn't necessarily indicate that the counterfactual change has been effectively integrated or that the story's flow and structure are coherent.
 
 - **Hypothetical Result**: 
      - Matches: 18 unigrams
@@ -113,44 +104,36 @@ A high ROUGE-1 score suggests that the "edited ending" retains significant conte
 
 
 2. **ROUGE-2 (Bigram Overlap)**:
-Assesses how pairs of consecutive words (bigrams) from the "original ending" are preserved in the "edited ending".
-
-Example Result: If the ROUGE-2 score is lower than ROUGE-1, it might indicate that while individual words are present, specific phrases or expressions are less frequently preserved. 
-
-For instance, bigrams like "jumped in", "coming out", "took drawing", are present but others might not be.
-
-This metric is used for evaluating whether the model captures the narrative's flow and the sequence of events. A lower ROUGE-2 score may suggest changes in how events or actions are described, reflecting the model's adaptation to the counterfactual scenario.
-
-Assuming there are fewer bigram matches, let's suppose we have 10 matching bigrams:
+    Assesses how pairs of consecutive words (bigrams) from the "original ending" are preserved in the "edited ending".
+    Example Result: If the ROUGE-2 score is lower than ROUGE-1, it might indicate that while individual words are present, specific phrases or expressions are less frequently preserved. 
+    For instance, bigrams like "jumped in", "coming out", "took drawing", are present but others might not be.
+    This metric is used for evaluating whether the model captures the narrative's flow and the sequence of events. A lower ROUGE-2 score may suggest changes in how events or actions are described, reflecting the model's adaptation to the counterfactual scenario.
 - **Hypothetical Result**: 
-     - Matches: 12 bigrams
+     - Matches: 12 bigrams (An assumption)
      - Total bigrams in "Edited Ending":  29 (30 words - 1)
      - Total bigrams in "Original Ending": 19 (20 words - 1)
-Let's say we have 12 matching bigrams between the Original and Edited endings.
 
-**Precision (P):**
-- Formula: $( P = \frac{\text{Number of matching bigrams}}{\text{Total bigrams in Edited Ending}} $)
-- Calculation: $( P = \frac{12}{29} \approx 0.414 $)
-- Meaning: Precision measures how many of the bigrams from the Edited Ending are actually present in the Original Ending. Here, approximately 41.4% of the bigrams in the Edited Ending are correct as per the Original Ending.
+    **Precision (P):**
+    - Formula: $( P = \frac{\text{Number of matching bigrams}}{\text{Total bigrams in Edited Ending}} $)
+    - Calculation: $( P = \frac{12}{29} \approx 0.414 $)
+    - Meaning: Precision measures how many of the bigrams from the Edited Ending are actually present in the Original Ending. Here, approximately 41.4% of the bigrams in the Edited Ending are correct as per the Original Ending.
 
-**Recall (R):**
-- Formula: $( R = \frac{\text{Number of matching bigrams}}{\text{Total bigrams in Original Ending}} $)
-- Calculation: $( R = \frac{12}{19} \approx 0.632 $)
-- Meaning: Recall measures how many of the bigrams from the Original Ending are captured in the Edited Ending. Here, approximately 63.2% of the Original Ending's bigrams are preserved in the Edited Ending.
+    **Recall (R):**
+    - Formula: $( R = \frac{\text{Number of matching bigrams}}{\text{Total bigrams in Original Ending}} $)
+    - Calculation: $( R = \frac{12}{19} \approx 0.632 $)
+    - Meaning: Recall measures how many of the bigrams from the Original Ending are captured in the Edited Ending. Here, approximately 63.2% of the Original Ending's bigrams are preserved in the Edited Ending.
 
-**F1 Score:**
-- Formula: $( F1 = 2 \times \frac{P \times R}{P + R} $)
-- Calculation: $( F1 = 2 \times \frac{0.414 \times 0.632}{0.414 + 0.632} \approx 0.5 $)
-- Meaning: The F1 Score balances precision and recall. In this case, the score suggests that the Edited Ending has a fair balance of bigram precision and recall, but there is room for improvement in matching the Original Ending's structure more closely.
+    **F1 Score:**
+    - Formula: $( F1 = 2 \times \frac{P \times R}{P + R} $)
+    - Calculation: $( F1 = 2 \times \frac{0.414 \times 0.632}{0.414 + 0.632} \approx 0.5 $)
+    - Meaning: The F1 Score balances precision and recall. In this case, the score suggests that the Edited Ending has a fair balance of bigram precision and recall, but there is room for improvement in matching the Original Ending's structure more closely.
 
-**Interpretation**: A lower ROUGE-2 score compared to ROUGE-1 indicates that while individual words are present, the specific sequences or phrases are less preserved. This could reflect the model's adaptation to the counterfactual scenario, altering the story's flow or sequence of events.
+    **Interpretation**: A lower ROUGE-2 score compared to ROUGE-1 indicates that while individual words are present, the specific sequences or phrases are less preserved. This could reflect the model's adaptation to the counterfactual scenario, altering the story's flow or sequence of events.
 
 
 3. **ROUGE-L (Longest Common Subsequence)**:
 Focuses on the longest sequence of words that appear in the same relative order (not necessarily contiguous) in both the "edited ending" and the "original ending".
-
 Example Result: If ROUGE-L scores are high, it indicates that there's a significant overlap in the structure of the "edited ending" and the "original ending". 
-
 For instance, the sequence "Then, she jumped in the air... the picture kept coming out wrong... it took... to get it right" is a common subsequence.
 
 A high ROUGE-L score suggests that the model preserves the overall structure and narrative flow from the "original ending" in the "edited ending". This metric is particularly valuable in assessing whether the "edited ending" maintains logical coherence and readability despite the counterfactual change.
