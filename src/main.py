@@ -53,6 +53,12 @@ def setup_dataloaders(model):
         preprocess_data,
         CONFIG["num_workers"]
     )
+    # Code to check the first batch from each dataloader
+    for file_name, dataloader in dataloaders.items():
+        for batch in dataloader:
+            print(f"First batch from {file_name}:")
+            print(batch)
+            break  # Break after printing the first batch
     return dataloaders
 
 def setup_trainer(model_save_path):
@@ -112,6 +118,10 @@ def main():
         valid_dataloader = dataloaders['dev_data1.json']
         test_dataloader = dataloaders['test_data1.json']
 
+        # Check what keys are present in your batch
+        batch = next(iter(train_dataloader))
+        print(batch.keys())
+
         # Start the training process.
         trainer.fit(model, train_dataloader, valid_dataloader)
         
@@ -123,3 +133,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

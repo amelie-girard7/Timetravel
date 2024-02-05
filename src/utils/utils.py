@@ -59,7 +59,7 @@ def preprocess_data(row):
         pd.Series: A pandas Series containing the processed input and output sequences.
     """
     try:
-        # Extracting fields from the row
+        # Extract fields from the row
         premise = row.get('premise', "Missing premise")
         initial = row.get('initial', "Missing initial")
         original_ending = row.get('original_ending', "Missing original_ending")
@@ -70,24 +70,33 @@ def preprocess_data(row):
         if not isinstance(edited_ending, list):
             edited_ending = ["Invalid format for edited_ending"]
         
-        # Constructing the input sequence (Premise, Initial, Original Ending, Counterfactual)
-        # Fetch the separator token from the CONFIG or use a default
-        separator_token = CONFIG.get("separator_token", "<s>")
-        input_sequence = f"{premise} {initial} {original_ending} {separator_token} {initial} {counterfactual}"
-        
         # Constructing the output sequence (Edited Ending)
         output_sequence = ' '.join(edited_ending)
         
+        # Print to inspect if all keys are present
+        print("Keys in the row during preprocess_data:", row.keys())
+        
+        print(f"Input components: premise={premise}, initial={initial}, original_ending={original_ending}, counterfactual={counterfactual}")
+        print(f"Output sequence: {output_sequence}")
+        
+        # Returning the individual components as separate items
         return pd.Series({
-            'input_ids': input_sequence,
-            'output_ids': output_sequence
+            'premise': premise,
+            'initial': initial,
+            'original_ending': original_ending,
+            'counterfactual': counterfactual,
+            'edited_ending': output_sequence  # Output sequence is a single string
         })
     except Exception as e:
         logger.error(f"An error occurred while processing the data: {e}")
         logger.error(f"Problematic data row: {row}")
+        # Return a series with error messages
         return pd.Series({
-            'input_ids': "Error in input",
-            'output_ids': "Error in output"
+            'premise': "Error in premise",
+            'initial': "Error in initial",
+            'original_ending': "Error in original_ending",
+            'counterfactual': "Error in counterfactual",
+            'edited_ending': "Error in output"
         })
 
 def collate_fn(batch, tokenizer):
@@ -101,18 +110,32 @@ def collate_fn(batch, tokenizer):
     Returns:
         dict: A dictionary with tokenized inputs and outputs, ready for model training or inference.
     """
-    # Extracting input and output sequences from the batch
-    input_sequences = [item['input_ids'] for item in batch]
-    output_sequences = [item['output_ids'] for item in batch]
+    # Fetch the separator token from the CONFIG or use a default
+    separator_token = CONFIG.get("separator_token", "<s>")
+    
+    # Constructing the input and output sequences for each item in the batch
+    input_sequences = []
+    output_sequences = []
+    for item in batch:
+        input_sequence = f"{item['premise']} {item['initial']} {item['original_ending']} {separator_token} {item['initial']} {item['counterfactual']}"
+        input_sequences.append(input_sequence)
+        output_sequences.append(item['edited_ending'])
+    
+    # Print keys and the first input sequence for inspection
+    print("Keys in the batch during collate_fn:", batch[0].keys())
+    if input_sequences:  # Checking if input_sequences is not empty
+        print("First input sequence after concatenation:", input_sequences[0])
     
     # Tokenizing input sequences
     encoding = tokenizer(input_sequences, padding=True, truncation=True, return_tensors="pt")
     
-    # Tokenizing output sequences
+    # Tokenizing output sequences (edited_endings)
     with tokenizer.as_target_tokenizer():
         labels = tokenizer(output_sequences, padding=True, truncation=True, return_tensors="pt")["input_ids"]
     
     # Adding labels to the encoding
     encoding["labels"] = labels
     
+    # Print keys in the final batch after tokenization
+    print("Keys in the batch after tokenization:", encoding.keys())
     return encoding

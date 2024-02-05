@@ -49,8 +49,14 @@ class CustomJSONDataset(Dataset):
         Returns:
             Series: The processed data at the given index.
         """
-        return self.processed_data.iloc[idx]
+        item = self.processed_data.iloc[idx]
 
+        # Debugging: Only print for the first few indices
+        if idx < 3:  # Adjust this number to print more or fewer items
+            print(f"Item at index {idx}: {item.to_dict()}")
+            print(f"Keys at index {idx}: {item.keys().tolist()}")
+        return item
+     
 # Define a new collate function that takes tokenizer as a parameter
 def custom_collate_fn(batch, tokenizer):
     return collate_fn(batch, tokenizer)
@@ -94,5 +100,5 @@ def create_dataloaders(data_path, file_names, batch_size, tokenizer, preprocess_
         )
         # Store the DataLoader in the dictionary using the file name as the key
         dataloaders[file_name] = dataloader
-
+    
     return dataloaders
