@@ -1,3 +1,5 @@
+#/src/data_loader.py 
+
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
@@ -12,13 +14,12 @@ class CustomJSONDataset(Dataset):
         processed_data (DataFrame): Contains the preprocessed data ready for model input.
     """
 
-    def __init__(self, file_path, preprocess_fn):
+    def __init__(self, file_path):
         """
         Initializes the dataset object by reading and preprocessing the JSON data.
         
         Parameters:
             file_path (str or Path): The file path to the JSON file containing the raw data.
-            preprocess_fn (function): The preprocessing function to apply to the data.
         
         Raises:
             ValueError: If there is an error reading or parsing the JSON file.
@@ -33,7 +34,7 @@ class CustomJSONDataset(Dataset):
             raise FileNotFoundError(f"File not found: {file_path}")
 
         # Apply the preprocessing function to each row of the DataFrame
-        self.processed_data = data.apply(preprocess_fn, axis=1, result_type='expand')
+        self.processed_data = data.apply(preprocess_data, axis=1, result_type='expand')
 
     def __len__(self):
         """Returns the total number of items in the dataset."""
@@ -52,7 +53,7 @@ class CustomJSONDataset(Dataset):
         item = self.processed_data.iloc[idx]
 
         # Debugging: Only print for the first few indices
-        if idx < 3:  # Adjust this number to print more or fewer items
+        if idx < 3:  #
             print(f"Item at index {idx}: {item.to_dict()}")
             print(f"Keys at index {idx}: {item.keys().tolist()}")
         return item
@@ -61,7 +62,7 @@ class CustomJSONDataset(Dataset):
 def custom_collate_fn(batch, tokenizer):
     return collate_fn(batch, tokenizer)
 
-def create_dataloaders(data_path, file_names, batch_size, tokenizer, preprocess_fn, num_workers=0):
+def create_dataloaders(data_path, file_names, batch_size, tokenizer, num_workers=0):
     """
     Creates a dictionary of DataLoader objects for each specified JSON file.
     
@@ -70,7 +71,6 @@ def create_dataloaders(data_path, file_names, batch_size, tokenizer, preprocess_
         file_names (list of str): List of JSON file names to create dataloaders for.
         batch_size (int): Number of samples to be loaded per batch.
         tokenizer (PreTrainedTokenizer): The tokenizer used for encoding the text data.
-        preprocess_fn (function): Preprocessing function to be applied to each data item.
         num_workers (int): Number of worker threads to use for data loading (default is 0, which means the data will be loaded in the main process).
     
     Returns:
@@ -87,9 +87,9 @@ def create_dataloaders(data_path, file_names, batch_size, tokenizer, preprocess_
         if not file_path.exists():
             raise FileNotFoundError(f"{file_path} does not exist.")
 
-        # Create a custom dataset using the JSON file and the preprocessing function
-        dataset = CustomJSONDataset(file_path, preprocess_fn)
-        # Create a partial function for collate_fn with tokenizer
+        # Create a custom dataset using the JSON file and the preprocess_data function directly
+        dataset = CustomJSONDataset(file_path)
+        # Create a partial function for collate_fn with tokenizer ()
         collate_fn_with_tokenizer = partial(custom_collate_fn, tokenizer=tokenizer)
         # Create a DataLoader for batching and loading the dataset
         dataloader = DataLoader(

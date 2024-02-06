@@ -214,6 +214,320 @@ The main executable script for the project:
 <img src="./images/dataflow.png" alt="dataflow"/>
  
 
+
+
+### 1. `CustomJSONDataset.__init__`
+- **Input**: File path of the JSON file containing the raw data.
+
+test_data1.json
+
+```json
+{
+	"story_id": "42b12f6d-811e-4a0f-bd1f-5d7fdde74973",
+	"premise": "The soccer game was tied 3 to 3 and there was a minute left to play.",
+	"initial": "Julie had never scored a goal yet, but knew today would be her day.",
+	"counterfactual": "Julie was eagerly watching the game in the stands.",
+	"original_ending": "Ashley passed her the ball and this was chance. She kicked as hard as she could, and the ball soared into the net. Julie's first goal won the game.",
+	"edited_endings": [
+		[
+			"Ashley passed the ball and this their was chance.",
+			"She kicked as hard as she could, and the ball soared into the net.",
+			"Julie's team won the game."
+		],
+		[
+			"Ashley had the ball and this was their chance.",
+			"She kicked as hard as she could, and the ball soared into the net.",
+			"Julie's team won the game."
+		],
+		[
+			"Ashley passed the ball and this was the chance.",
+			"Another teammate kicked as hard as she could, and the ball soared into the net.",
+			"Julie's got to see the goal win the game."
+		]
+	]
+}
+{
+	"story_id": "8a1693c7-dabf-46bb-a4af-d402358b72bc",
+	"premise": "Molly loves popcorn.",
+	"initial": "She eats it everyday.",
+	"counterfactual": "However, she ate too much of it one day, and never wants to eat it again.",
+	"original_ending": "On Molly birthday her mom took her to the popcorn factory. They took a tour of the factory. Molly had a great day.",
+	"edited_endings": [
+		[
+			"On Molly's birthday her mom took her to a chocolate factory.",
+			"They took a tour of the factory.",
+			"Molly had a great time."
+		],
+		[
+			"On Molly's birthday her mom took her to the toy factory.",
+			"They took a tour of the factory.",
+			"Molly had a great day."
+		],
+		[
+			"On Molly birthday her mom took her to the popcorn factory.",
+			"They took a tour of the factory.",
+			"But Molly had a bad day."
+		]
+	]
+}
+```
+
+dev_data1.json
+
+```json
+{
+	"story_id": "e948a9b0-1f8a-4166-b43a-757387ea6ca0",
+	"premise": "Sam and John went out to play some ultimate Frisbee one day.",
+	"initial": "Upon arrival at the field, there was a pickup game of football going.",
+	"counterfactual": "Upon arrival at the field they found it deserted.",
+	"original_ending": "Sam approached them and asked them to let him and John play as well. After a few minutes talk, they agreed and everyone played for a bit. Then they all went home.",
+	"edited_endings": [
+		[
+			"Sam and John began to play.",
+			"They stayed out and played for a bit.",
+			"Then they went home."
+		],
+		[
+			"Sam and John played on the field by themselves.",
+			"After a few minutes, they agreed they were bored.",
+			"Then they went home."
+		],
+		[
+			"Sam and John had the whole field to play on.",
+			"After a few minutes, some kids came over and asked to play.",
+			"They all played Frisbee together."
+		]
+	]
+}
+{
+	"story_id": "19b67b77-cb21-48dc-bde9-87f8670a1538",
+	"premise": "I wanted a pet for my birthday.",
+	"initial": "I wasn't sure what to get, I already had dogs.",
+	"counterfactual": "Only dogs are allowed in my apartment building.",
+	"original_ending": "I was looking around on facebook and saw a mini pig. I went to pick her up. I drove home with the mini pig in my car.",
+	"edited_endings": [
+		[
+			"I was looking around on facebook and saw a miniature poodle..",
+			"I went to pick her up.",
+			"I drove home with the miniature poodle in my car."
+		],
+		[
+			"I was looking around on facebook and saw a dog.",
+			"I went to pick her up.",
+			"I drove home with the dog in my car."
+		],
+		[
+			"I was looking around on facebook and saw a mini pig.",
+			"I went to pick her up.",
+			"I drove home with the mini pig in my car and kept it as a secret pet."
+		]
+	]
+}
+```
+
+
+train_supervised_small1.json
+
+```json
+{
+	"story_id": "080198fc-d0e7-42b3-8e63-b2144e59d816",
+	"premise": "On my way to work I stopped to get some coffee.",
+	"initial": "I went through the drive through and placed my order.",
+	"counterfactual": "I went inside to place my order.",
+	"original_ending": "I paid the cashier and patiently waited for my drink. When she handed me the drink, the lid came off and spilled on me. The coffee hurt and I had to go home and change clothes.",
+	"edited_ending": [
+		"I paid the cashier and patiently waited at the counter for my drink.",
+		"When she handed me the drink, the lid came off and spilled on me.",
+		"The coffee hurt and I had to go home and change clothes."
+	]
+}
+{
+	"story_id": "1ba02a18-8807-4f39-9271-ef555597ce21",
+	"premise": "Terry aspired to be a chef.",
+	"initial": "His father is one.",
+	"counterfactual": "He moved to Italy and opened a restaurant.",
+	"original_ending": "He decided he would continue the business. He soaked up all the info from his dad. He took over the business.",
+	"edited_ending": [
+		"He decided he would continue the business.",
+		"He soaked up all the info from his customers.",
+		"He made the business profitable."
+	]
+}
+```
+
+
+### 1. `CustomJSONDataset.__init__`
+- **Input**: File path of the JSON file containing the raw data.
+- **Process**:
+  - Reads the JSON file line by line.
+  - For each story, it applies the preprocessing function (`preprocess_fn`) to transform the data.
+- **Output**: An instance of `CustomJSONDataset` containing the preprocessed data in a structured format (`processed_data` attribute).
+
+### 2. `preprocess_data`
+- **Input**: A single story (a row from the JSON file).
+- **Process**:
+  - Extracts fields from the story (`premise`, `initial`, `counterfactual`, `original_ending`, `edited_ending`).
+  - Ensures `edited_ending` is a list and concatenates it into a single string.
+  - Constructs the output sequence from `edited_ending`.
+- **Output**: A pandas Series containing processed fields for a single story.
+
+### 3. `CustomJSONDataset.__getitem__`
+- **Input**: Index (`idx`) of the desired data point.
+- **Process**: Retrieves the processed data at the given index from the `processed_data` DataFrame.
+- **Output**: A single processed story (a row from `processed_data`).
+
+### 4. `collate_fn` / `custom_collate_fn`
+- **Input**: A batch of stories (data points).
+- **Process**:
+  - Concatenates certain fields from each story to form the input sequence for the model.
+  - Uses the tokenizer to convert input sequences into token IDs, creates attention masks, and prepares labels (target sequences).
+- **Output**: A dictionary containing tokenized inputs, attention masks, and labels, ready for the model.
+
+### 5. `FlanT5FineTuner.forward`
+- **Input**: Token IDs, attention masks, and optional labels from the batched data.
+- **Process**:
+  - Performs a forward pass through the Flan-T5 model.
+  - Computes loss if labels are provided (during training).
+- **Output**: Model output, which includes the loss if labels were provided.
+
+### 6. `FlanT5FineTuner.training_step`
+- **Input**: A batch from the training DataLoader, batch index.
+- **Process**:
+  - Calls the `forward` method to perform a forward pass and compute the loss.
+  - Logs the training loss.
+- **Output**: The loss tensor for backpropagation.
+
+### 7. `FlanT5FineTuner.validation_step` and `FlanT5FineTuner.test_step`
+- **Input**: A batch from the validation/test DataLoader, batch index.
+- **Process**:
+  - Performs a forward pass to compute loss.
+  - Generates text predictions from the model.
+  - Prepares data for metric calculation (BLEU, ROUGE).
+- **Output** (`validation_step`): Dictionary containing loss, predictions, and target texts for the current batch. (In `test_step`, it logs the metrics.)
+
+### 8. `FlanT5FineTuner.on_validation_epoch_end`
+- **Input**: Aggregated results from all validation steps.
+- **Process**:
+  - Calculates average BLEU and ROUGE scores across all validation data.
+  - Logs the calculated metrics.
+- **Output**: None (but metrics are logged).
+
+### 9. `FlanT5FineTuner.configure_optimizers`
+- **Input**: None (but uses configuration from `CONFIG`).
+- **Process**: Configures the optimizer for the model.
+- **Output**: The optimizer instance.
+
+### 10. `FlanT5FineTuner.generate_text`
+- **Input**: Token IDs and optional attention masks.
+- **Process**:
+  - Generates text sequences using the model's `generate` function.
+  - Decodes the generated token IDs back into human-readable text.
+- **Output**: List of generated text sequences.
+
+### 11. `main`
+- **Process**:
+  - Sets up the model, data loaders, and trainer.
+  - Starts the training process with `trainer.fit`.
+  - Optionally evaluates the model on test data with `trainer.test`.
+- **Output**: A trained model and logs/metrics from the training and testing process.
+
+Each function serves a specific role in the overall process, moving data from raw input to processed output, ready for training, evaluation, and generating predictions.
+
+- **Process**:
+  - Reads the JSON file line by line.
+  - For each story, it applies the preprocessing function (`preprocess_fn`) to transform the data.
+- **Output**: An instance of `CustomJSONDataset` containing the preprocessed data in a structured format (`processed_data` attribute).
+
+### 2. `preprocess_data`
+- **Input**: A single story (a row from the JSON file).
+- **Process**:
+  - Extracts fields from the story (`premise`, `initial`, `counterfactual`, `original_ending`, `edited_ending`).
+  - Ensures `edited_ending` is a list and concatenates it into a single string.
+  - Constructs the output sequence from `edited_ending`.
+- **Output**: A pandas Series containing processed fields for a single story.
+
+### 3. `CustomJSONDataset.__getitem__`
+- **Input**: Index (`idx`) of the desired data point.
+- **Process**: Retrieves the processed data at the given index from the `processed_data` DataFrame.
+- **Output**: A single processed story (a row from `processed_data`).
+
+### 4. `collate_fn` / `custom_collate_fn`
+- **Input**: A batch of stories (data points).
+- **Process**:
+  - Concatenates certain fields from each story to form the input sequence for the model.
+  - Uses the tokenizer to convert input sequences into token IDs, creates attention masks, and prepares labels (target sequences).
+- **Output**: A dictionary containing tokenized inputs, attention masks, and labels, ready for the model.
+
+### 5. `FlanT5FineTuner.forward`
+- **Input**: Token IDs, attention masks, and optional labels from the batched data.
+- **Process**:
+  - Performs a forward pass through the Flan-T5 model.
+  - Computes loss if labels are provided (during training).
+- **Output**: Model output, which includes the loss if labels were provided.
+
+### 6. `FlanT5FineTuner.training_step`
+- **Input**: A batch from the training DataLoader, batch index.
+- **Process**:
+  - Calls the `forward` method to perform a forward pass and compute the loss.
+  - Logs the training loss.
+- **Output**: The loss tensor for backpropagation.
+
+### 7. `FlanT5FineTuner.validation_step` and `FlanT5FineTuner.test_step`
+- **Input**: A batch from the validation/test DataLoader, batch index.
+- **Process**:
+  - Performs a forward pass to compute loss.
+  - Generates text predictions from the model.
+  - Prepares data for metric calculation (BLEU, ROUGE).
+- **Output** (`validation_step`): Dictionary containing loss, predictions, and target texts for the current batch. (In `test_step`, it logs the metrics.)
+
+### 8. `FlanT5FineTuner.on_validation_epoch_end`
+- **Input**: Aggregated results from all validation steps.
+- **Process**:
+  - Calculates average BLEU and ROUGE scores across all validation data.
+  - Logs the calculated metrics.
+- **Output**: None (but metrics are logged).
+
+### 9. `FlanT5FineTuner.configure_optimizers`
+- **Input**: None (but uses configuration from `CONFIG`).
+- **Process**: Configures the optimizer for the model.
+- **Output**: The optimizer instance.
+
+### 10. `FlanT5FineTuner.generate_text`
+- **Input**: Token IDs and optional attention masks.
+- **Process**:
+  - Generates text sequences using the model's `generate` function.
+  - Decodes the generated token IDs back into human-readable text.
+- **Output**: List of generated text sequences.
+
+### 11. `main`
+- **Process**:
+  - Sets up the model, data loaders, and trainer.
+  - Starts the training process with `trainer.fit`.
+  - Optionally evaluates the model on test data with `trainer.test`.
+- **Output**: A trained model and logs/metrics from the training and testing process.
+
+Each function serves a specific role in the overall process, moving data from raw input to processed output, ready for training, evaluation, and generating predictions.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## Evaluation Metrics
 
 The models' performance is gauged by their proficiency in generating story endings that are not only coherent and contextually relevant but also accurately align with the introduced counterfactual premise. To appraise the quality of these rewritten narratives, we employ a blend of automated metrics such as BLEU, ROUGE, BERT, and BART, complemented by meticulous human evaluations.

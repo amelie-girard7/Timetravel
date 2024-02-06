@@ -3,6 +3,8 @@
 import json
 import pandas as pd
 import logging
+
+import torch
 from src.utils.config import CONFIG
 
 # Configure logger for the utils module
@@ -108,34 +110,18 @@ def collate_fn(batch, tokenizer):
         tokenizer (PreTrainedTokenizer): The tokenizer used for encoding the text data.
     
     Returns:
-        dict: A dictionary with tokenized inputs and outputs, ready for model training or inference.
+        dict: A dictionary with tokenized inputs for each component and outputs, ready for model training or inference.
     """
-    # Fetch the separator token from the CONFIG or use a default
-    separator_token = CONFIG.get("separator_token", "<s>")
+    tokenized_batch = {}
     
-    # Constructing the input and output sequences for each item in the batch
-    input_sequences = []
-    output_sequences = []
-    for item in batch:
-        input_sequence = f"{item['premise']} {item['initial']} {item['original_ending']} {separator_token} {item['initial']} {item['counterfactual']}"
-        input_sequences.append(input_sequence)
-        output_sequences.append(item['edited_ending'])
+    # Tokenize each component individually and store in the tokenized_batch dictionary
+    for component in ['premise', 'initial', 'original_ending', 'counterfactual', 'edited_ending']:
+        component_sequences = [item[component] for item in batch]
+        tokenized_batch[component] = tokenizer(component_sequences, padding=True, truncation=True, return_tensors="pt")["input_ids"]
     
-    # Print keys and the first input sequence for inspection
-    print("Keys in the batch during collate_fn:", batch[0].keys())
-    if input_sequences:  # Checking if input_sequences is not empty
-        print("First input sequence after concatenation:", input_sequences[0])
+    # Construct attention_mask for input_ids (optional, based on your model's requirements)
+    attention_masks = [torch.ones_like(tokenized_batch[component], dtype=torch.long) for component in tokenized_batch if component != 'edited_ending']
+    tokenized_batch['attention_mask'] = torch.cat(attention_masks, dim=1)
     
-    # Tokenizing input sequences
-    encoding = tokenizer(input_sequences, padding=True, truncation=True, return_tensors="pt")
-    
-    # Tokenizing output sequences (edited_endings)
-    with tokenizer.as_target_tokenizer():
-        labels = tokenizer(output_sequences, padding=True, truncation=True, return_tensors="pt")["input_ids"]
-    
-    # Adding labels to the encoding
-    encoding["labels"] = labels
-    
-    # Print keys in the final batch after tokenization
-    print("Keys in the batch after tokenization:", encoding.keys())
-    return encoding
+    return tokenized_batch
+

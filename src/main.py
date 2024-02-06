@@ -50,7 +50,6 @@ def setup_dataloaders(model):
         file_names,
         CONFIG["batch_size"],
         model.tokenizer,  # Pass tokenizer directly to create_dataloaders
-        preprocess_data,
         CONFIG["num_workers"]
     )
     # Code to check the first batch from each dataloader
@@ -118,9 +117,20 @@ def main():
         valid_dataloader = dataloaders['dev_data1.json']
         test_dataloader = dataloaders['test_data1.json']
 
-        # Check what keys are present in your batch
+        # Fetch the first batch from the training DataLoader
         batch = next(iter(train_dataloader))
-        print(batch.keys())
+
+        # Print out each key with the corresponding data shape, type, and a preview of the first few items for inspection
+        for key in batch.keys():
+            print(f"{key}:")
+            print(f"  - Type: {type(batch[key])}")
+            print(f"  - Dtype: {batch[key].dtype}")
+            print(f"  - Shape: {batch[key].shape}")
+            # Only print a preview if the key refers to tensor data
+            if torch.is_tensor(batch[key]):
+                print(f"  - Data (preview): {batch[key][:1]}")
+            else:
+                print(f"  - Data (preview): {batch[key][:1].tolist()}")
 
         # Start the training process.
         trainer.fit(model, train_dataloader, valid_dataloader)
