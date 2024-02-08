@@ -61,7 +61,7 @@ class FlanT5FineTuner(pl.LightningModule):
             initial=batch['initial'],
             original_ending=batch['original_ending'],
             counterfactual=batch['counterfactual'],
-            labels=batch['edited_ending'],
+            labels=batch['edited_endings'],
             attention_mask=batch['attention_mask']
         )
         loss = outputs.loss
@@ -83,7 +83,7 @@ class FlanT5FineTuner(pl.LightningModule):
             initial=batch['initial'],
             original_ending=batch['original_ending'],
             counterfactual=batch['counterfactual'],
-            labels=batch['edited_ending'],
+            labels=batch['edited_endings'],
             attention_mask=batch['attention_mask']
         )
         val_loss = outputs.loss
@@ -99,7 +99,7 @@ class FlanT5FineTuner(pl.LightningModule):
         )
 
         # Decode the labels (ground truth edited ending) from the batch for comparison with the model's generated text.
-        edited_endings = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['edited_ending']]
+        edited_endings = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['edited_endings']]
 
         # Store output information for metric calculation at the end of the epoch
         output = {
@@ -173,7 +173,7 @@ class FlanT5FineTuner(pl.LightningModule):
             initial=batch['initial'],
             original_ending=batch['original_ending'],
             counterfactual=batch['counterfactual'],
-            labels=batch['edited_ending'],
+            labels=batch['edited_endings'],
             attention_mask=batch['attention_mask']
         )
         test_loss = outputs.loss
@@ -189,7 +189,7 @@ class FlanT5FineTuner(pl.LightningModule):
         )
         
         # Decode the actual labels from the batch to get the ground truth text.
-        decoded_targets = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['edited_ending']]
+        decoded_targets = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['edited_endings']]
         
         print(f"\nTest Step {batch_idx} - Batch Keys: {batch.keys()}")  # Print the keys in the batch for debugging
         print(f"Generated Texts (first 2): {generated_texts[:2]}")  # Print the first 2 generated texts for inspection
@@ -278,4 +278,3 @@ class FlanT5FineTuner(pl.LightningModule):
         generated_texts = [self.tokenizer.decode(generated_id, skip_special_tokens=True, clean_up_tokenization_spaces=True) for generated_id in generated_ids]
         
         return generated_texts
-

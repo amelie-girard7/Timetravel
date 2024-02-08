@@ -60,26 +60,25 @@ def preprocess_data(row):
     Returns:
         pd.Series: A pandas Series containing the processed input and output sequences.
     """
+    print(f"\n--- preprocess_data {row['story_id']} ---")
     try:
         # Extract fields from the row
         premise = row.get('premise', "Missing premise")
         initial = row.get('initial', "Missing initial")
         original_ending = row.get('original_ending', "Missing original_ending")
         counterfactual = row.get('counterfactual', "Missing counterfactual")
-        edited_ending = row.get('edited_ending', ["Missing edited_ending"])
+        edited_endings = row.get('edited_endings', None)
         
-        # Ensure edited_ending is a list
-        if not isinstance(edited_ending, list):
-            edited_ending = ["Invalid format for edited_ending"]
+        # Check if edited_ending is properly formatted or missing
+        if edited_endings is None:
+            edited_endings = [["Missing edited_endings"]]
+        elif not isinstance(edited_endings, list) or (isinstance(edited_endings, list) and not all(isinstance(e, list) for e in edited_endings)):
+            edited_endings = [edited_endings] if isinstance(edited_endings, list) else [[edited_endings]]
         
-        # Constructing the output sequence (Edited Ending)
-        output_sequence = ' '.join(edited_ending)
-        
-        # Print to inspect if all keys are present
-        print("Keys in the row during preprocess_data:", row.keys())
-        
-        print(f"Input components: premise={premise}, initial={initial}, original_ending={original_ending}, counterfactual={counterfactual}")
-        print(f"Output sequence: {output_sequence}")
+        # Debugging: Print the keys and input components for inspection
+        print(f"Keys in the row: {row.keys()}")
+        print(f"Input components: premise='{premise}', initial='{initial}', original_ending='{original_ending}', counterfactual='{counterfactual}'")
+        print(f"Output sequence(s): {edited_endings}")
         
         # Returning the individual components as separate items
         return pd.Series({
@@ -87,7 +86,7 @@ def preprocess_data(row):
             'initial': initial,
             'original_ending': original_ending,
             'counterfactual': counterfactual,
-            'edited_ending': output_sequence  # Output sequence is a single string
+            'edited_endings': edited_endings # Keep edited_endings as a list
         })
     except Exception as e:
         logger.error(f"An error occurred while processing the data: {e}")
@@ -98,30 +97,39 @@ def preprocess_data(row):
             'initial': "Error in initial",
             'original_ending': "Error in original_ending",
             'counterfactual': "Error in counterfactual",
-            'edited_ending': "Error in output"
+            'edited_endings': "Error in output"
         })
 
 def collate_fn(batch, tokenizer):
-    """
-    Tokenize and collate a batch of data for the T5 model. 
-    
-    Args:
-        batch (list): A list of samples to be collated.
-        tokenizer (PreTrainedTokenizer): The tokenizer used for encoding the text data.
-    
-    Returns:
-        dict: A dictionary with tokenized inputs for each component and outputs, ready for model training or inference.
-    """
-    tokenized_batch = {}
-    
-    # Tokenize each component individually and store in the tokenized_batch dictionary
-    for component in ['premise', 'initial', 'original_ending', 'counterfactual', 'edited_ending']:
-        component_sequences = [item[component] for item in batch]
-        tokenized_batch[component] = tokenizer(component_sequences, padding=True, truncation=True, return_tensors="pt")["input_ids"]
-    
-    # Construct attention_mask for input_ids (optional, based on your model's requirements)
-    attention_masks = [torch.ones_like(tokenized_batch[component], dtype=torch.long) for component in tokenized_batch if component != 'edited_ending']
-    tokenized_batch['attention_mask'] = torch.cat(attention_masks, dim=1)
-    
-    return tokenized_batch
+    print("--- collate_fn: Starting ---")
+    # Initialize containers for the batch's tokenized data
+    tokenized_batch = {
+        'input_ids': {'concatenated': []},
+        'attention_mask': {'concatenated': []},
+        'labels': []
+    }
 
+    for item in batch:
+        # Concatenate text components for input_ids and attention_mask, except 'edited_endings'
+        concatenated_text = f"{item['premise']} {item['initial']} {item['original_ending']} {item['counterfactual']}"
+        tokenized = tokenizer(concatenated_text, padding='max_length', truncation=True, return_tensors="pt")
+        tokenized_batch['input_ids']['concatenated'].append(tokenized['input_ids'].squeeze(0))
+        tokenized_batch['attention_mask']['concatenated'].append(tokenized['attention_mask'].squeeze(0))
+
+        # Handle 'edited_endings': Flatten, tokenize, and append
+        if 'edited_endings' in item and item['edited_endings']:
+            for group in item['edited_endings']:
+                for sentence in group:
+                    tokenized_endings = tokenizer(sentence, padding='max_length', truncation=True, return_tensors="pt")
+                    tokenized_batch['labels'].append(tokenized_endings['input_ids'].squeeze(0))  # Assuming labels are individual sentences
+        else:
+            print("Missing edited_endings in item.")
+
+    # Convert lists to tensors
+    for key in ['input_ids', 'attention_mask']:
+        tokenized_batch[key]['concatenated'] = torch.stack(tokenized_batch[key]['concatenated'])
+    tokenized_batch['labels'] = torch.stack(tokenized_batch['labels']) if tokenized_batch['labels'] else None
+
+    print("collate_fn: Batch prepared.")
+    return tokenized_batch
+      

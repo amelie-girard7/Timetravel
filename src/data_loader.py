@@ -13,6 +13,7 @@ class CustomJSONDataset(Dataset):
     Attributes:
         processed_data (DataFrame): Contains the preprocessed data ready for model input.
     """
+    
 
     def __init__(self, file_path):
         """
