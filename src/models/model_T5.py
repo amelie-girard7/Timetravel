@@ -34,19 +34,61 @@ class FlanT5FineTuner(pl.LightningModule):
 
         # Initialize a list to store outputs for each validation step
         self.current_val_step_outputs = []
-
+    
+    
+    
     def forward(self, premise, initial, original_ending, counterfactual, labels=None, attention_mask=None):
         """
-        Forward pass for the model.
+        Performs the forward pass of the model.
+        
+        Args:
+            premise (Tensor): Tokenized tensor for the story premises.
+            initial (Tensor): Tokenized tensor for the initial states of the stories.
+            original_ending (Tensor): Tokenized tensor for the original endings of the stories.
+            counterfactual (Tensor): Tokenized tensor for the counterfactual (alternative scenarios) of the stories.
+            labels (Tensor, optional): Tokenized tensor for the edited endings, serving as labels for training. Default is None.
+            attention_mask (Tensor, optional): Tensor indicating which tokens should be attended to, and which should not.
+        
+        Returns:
+            The output from the T5 model, which includes loss when labels are provided, and logits otherwise.
         """
-        # Concatenate the individual components to form input_ids
+        print("--forward pass--")
+        
+        # Print the shapes of the inputs for debugging
+        print("Shapes of input components:")
+        print(f"Premise shape: {premise.shape}")
+        print(f"Initial shape: {initial.shape}")
+        print(f"Original ending shape: {original_ending.shape}")
+        print(f"Counterfactual shape: {counterfactual.shape}")
+        
+        if labels is not None:
+            print(f"Labels shape: {labels.shape}")
+        
+        # Concatenating the input components along the last dimension to form a single input tensor
+        # This concatenation is crucial as it combines all story components into a unified sequence
+        # that the model will process to understand the context before generating an output.
         input_ids = torch.cat([premise, initial, original_ending, counterfactual], dim=1)
+        print(f"Concatenated input_ids shape: {input_ids.shape}")
+        
+        # Pass the concatenated input_ids, attention_mask, and labels (if provided) to the model.
+        # The T5 model expects input_ids and attention_mask for processing.
+        # If labels are provided (during training), the model will also return the loss
+        # which can be used to update the model's weights.
+        output = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+        
+        # If labels were provided, the model's output will include loss for training.
+        # During inference (no labels), the model generates logits from which we can derive predictions.
+        if labels is not None:
+            print("Loss from model output:", output.loss.item())
+        else:
+            print("Model output generated without calculating loss (inference mode).")
+        
+        return output
 
-        # Call the model's forward method
-        return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+
 
     def training_step(self, batch, batch_idx):
-        """
+        """  
         Defines the training logic for a single batch, where a forward pass is performed and the loss is calculated.
 
         Args:
@@ -56,18 +98,20 @@ class FlanT5FineTuner(pl.LightningModule):
         Returns:
             torch.Tensor: The loss value for the batch.
         """
+        print("--training_step --")    
         outputs = self.forward(
             premise=batch['premise'],
             initial=batch['initial'],
             original_ending=batch['original_ending'],
             counterfactual=batch['counterfactual'],
-            labels=batch['edited_endings'],
+            labels=batch['edited_ending'],
             attention_mask=batch['attention_mask']
         )
         loss = outputs.loss
         self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True)
         return loss
-
+ 
+    
     def validation_step(self, batch, batch_idx):
         """
         Performs a validation step for a single batch.
@@ -77,13 +121,14 @@ class FlanT5FineTuner(pl.LightningModule):
             batch (dict): The batch of data provided by the DataLoader.
             batch_idx (int): The index of the current batch.
         """
+        print("-- validation_step --")   
         # Forward pass to compute loss and model outputs
         outputs = self.forward(
             premise=batch['premise'],
             initial=batch['initial'],
             original_ending=batch['original_ending'],
             counterfactual=batch['counterfactual'],
-            labels=batch['edited_endings'],
+            labels=batch['edited_ending'],
             attention_mask=batch['attention_mask']
         )
         val_loss = outputs.loss
@@ -99,7 +144,7 @@ class FlanT5FineTuner(pl.LightningModule):
         )
 
         # Decode the labels (ground truth edited ending) from the batch for comparison with the model's generated text.
-        edited_endings = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['edited_endings']]
+        edited_endings = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['edited_ending']]
 
         # Store output information for metric calculation at the end of the epoch
         output = {
@@ -118,6 +163,7 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         Called at the end of the validation epoch to calculate and log metrics.
         """
+        print("-- on_validation_epoch_end --")   
         # Initialize variables to store aggregated metrics
         aggregated_bleu_scores = 0
         aggregated_rouge_scores = {rouge_type: {"precision": 0, "recall": 0, "fmeasure": 0} for rouge_type in self.rouge_types}
@@ -167,13 +213,14 @@ class FlanT5FineTuner(pl.LightningModule):
         Returns:
             dict: Output dictionary containing generated texts and metrics.
         """
+        print("-- test_step --")   
         # Perform forward pass and compute loss
         outputs = self.forward(
             premise=batch['premise'],
             initial=batch['initial'],
             original_ending=batch['original_ending'],
             counterfactual=batch['counterfactual'],
-            labels=batch['edited_endings'],
+            labels=batch['edited_ending'],
             attention_mask=batch['attention_mask']
         )
         test_loss = outputs.loss
@@ -189,14 +236,14 @@ class FlanT5FineTuner(pl.LightningModule):
         )
         
         # Decode the actual labels from the batch to get the ground truth text.
-        decoded_targets = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['edited_endings']]
+        decoded_targets = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['edited_ending']]
         
         print(f"\nTest Step {batch_idx} - Batch Keys: {batch.keys()}")  # Print the keys in the batch for debugging
         print(f"Generated Texts (first 2): {generated_texts[:2]}")  # Print the first 2 generated texts for inspection
         print(f"Decoded Targets (first 2): {decoded_targets[:2]}")  # Print the first 2 decoded targets for inspection
         
         # Calculate custom metrics using the calculate_metrics method.
-        # TODO: calculate_metrics now logs the metrics internally. 
+        # logs the metrics internally. 
         self.calculate_metrics(generated_texts, decoded_targets)
 
         # Return the test loss
@@ -206,6 +253,7 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         Calculates and logs metrics for the generated texts against the edited endings.
         """
+        print("-- calculate_metrics --") 
         # Initialize variables to store aggregated metrics
         aggregated_bleu_score = 0
         aggregated_rouge_scores = {rouge_type: {"precision": 0, "recall": 0, "fmeasure": 0} for rouge_type in self.rouge_types}
@@ -259,6 +307,8 @@ class FlanT5FineTuner(pl.LightningModule):
         Returns:
             The optimizer to be used for training the model.
         """
+        print("-- configure_optimizers --") 
+        
         #lr = CONFIG.get("learning_rate", 2e-5)  # Fetch the learning rate from CONFIG with a default
         #return torch.optim.AdamW(self.model.parameters(), lr=lr)
         optimizer = torch.optim.AdamW(self.parameters(), lr=0.001)
@@ -268,6 +318,8 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         Generates text sequences from the provided input components using the model.
         """
+        print("-- generate_text --") 
+        
         # Concatenate the input components
         input_ids = torch.cat([premise, initial, original_ending, counterfactual], dim=1)
 
@@ -278,3 +330,4 @@ class FlanT5FineTuner(pl.LightningModule):
         generated_texts = [self.tokenizer.decode(generated_id, skip_special_tokens=True, clean_up_tokenization_spaces=True) for generated_id in generated_ids]
         
         return generated_texts
+

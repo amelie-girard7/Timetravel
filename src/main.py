@@ -42,8 +42,8 @@ def setup_dataloaders(model):
     Returns:
         dict: A dictionary containing the training, validation, and test dataloaders.
     """
-    data_path = CONFIG["data_dir"] / 'raw'
-    file_names = ['train_supervised_small1.json', 'dev_data1.json', 'test_data1.json']
+    data_path = CONFIG["data_dir"] / 'transformed'
+    file_names = ['train_supervised_small_sample.json', 'dev_data_sample.json', 'test_data_sample.json']
 
     dataloaders = create_dataloaders(
         data_path,
@@ -113,9 +113,9 @@ def main():
 
         trainer = setup_trainer(model_save_path)
 
-        train_dataloader = dataloaders['train_supervised_small1.json']
-        valid_dataloader = dataloaders['dev_data1.json']
-        test_dataloader = dataloaders['test_data1.json']
+        train_dataloader = dataloaders['train_supervised_small_sample.json']
+        valid_dataloader = dataloaders['dev_data_sample.json']
+        test_dataloader = dataloaders['test_data_sample.json']
 
         # Fetch the first batch from the training DataLoader
         batch = next(iter(train_dataloader))

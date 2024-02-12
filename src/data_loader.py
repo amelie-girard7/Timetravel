@@ -13,7 +13,6 @@ class CustomJSONDataset(Dataset):
     Attributes:
         processed_data (DataFrame): Contains the preprocessed data ready for model input.
     """
-    
 
     def __init__(self, file_path):
         """
@@ -26,9 +25,11 @@ class CustomJSONDataset(Dataset):
             ValueError: If there is an error reading or parsing the JSON file.
             FileNotFoundError: If the JSON file cannot be found at the specified path.
         """
+        print(f"Initializing dataset with file: {file_path}")
         try:
             # Read the JSON file into a pandas DataFrame
             data = pd.read_json(file_path, lines=True)
+            print(f"Successfully read {len(data)} rows from {file_path}")
         except pd.errors.ParserError as e:
             raise ValueError(f"Error parsing {file_path}: {e}")
         except FileNotFoundError:
@@ -36,6 +37,7 @@ class CustomJSONDataset(Dataset):
 
         # Apply the preprocessing function to each row of the DataFrame
         self.processed_data = data.apply(preprocess_data, axis=1, result_type='expand')
+        print(f"Data preprocessing completed. Processed data size: {len(self.processed_data)}")
 
     def __len__(self):
         """Returns the total number of items in the dataset."""
@@ -51,8 +53,9 @@ class CustomJSONDataset(Dataset):
         Returns:
             Series: The processed data at the given index.
         """
+        print(f"---Dataloader getitem---")
+        
         item = self.processed_data.iloc[idx]
-
         # Debugging: Only print for the first few indices
         if idx < 3:  #
             print(f"Item at index {idx}: {item.to_dict()}")
@@ -61,6 +64,7 @@ class CustomJSONDataset(Dataset):
      
 # Define a new collate function that takes tokenizer as a parameter
 def custom_collate_fn(batch, tokenizer):
+    print(f"Running custom collate function on batch of size {len(batch)}")
     return collate_fn(batch, tokenizer)
 
 def create_dataloaders(data_path, file_names, batch_size, tokenizer, num_workers=0):
@@ -101,5 +105,6 @@ def create_dataloaders(data_path, file_names, batch_size, tokenizer, num_workers
         )
         # Store the DataLoader in the dictionary using the file name as the key
         dataloaders[file_name] = dataloader
+        print(f"Dataloader created for {file_name}")
     
     return dataloaders
