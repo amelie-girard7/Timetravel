@@ -37,12 +37,10 @@ class FlanT5FineTuner(pl.LightningModule):
     
     
     
-    def forward(self, premise, initial, original_ending, counterfactual, labels=None, attention_mask=None):
+    def forward(self, input_ids, attention_mask, labels):
         """
-        Performs the forward pass of the model.
-        
-        Args:
-            premise (Tensor): Tokenized tensor for the story premises.
+        Performs the forward pass of the model.b4         
+        Args:-992            premise (Tensor): Tokenized tensor for the story premises.
             initial (Tensor): Tokenized tensor for the initial states of the stories.
             original_ending (Tensor): Tokenized tensor for the original endings of the stories.
             counterfactual (Tensor): Tokenized tensor for the counterfactual (alternative scenarios) of the stories.
@@ -54,21 +52,8 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         print("--forward pass--")
         
-        # Print the shapes of the inputs for debugging
-        print("Shapes of input components:")
-        print(f"Premise shape: {premise.shape}")
-        print(f"Initial shape: {initial.shape}")
-        print(f"Original ending shape: {original_ending.shape}")
-        print(f"Counterfactual shape: {counterfactual.shape}")
-        
         if labels is not None:
             print(f"Labels shape: {labels.shape}")
-        
-        # Concatenating the input components along the last dimension to form a single input tensor
-        # This concatenation is crucial as it combines all story components into a unified sequence
-        # that the model will process to understand the context before generating an output.
-        input_ids = torch.cat([premise, initial, original_ending, counterfactual], dim=1)
-        print(f"Concatenated input_ids shape: {input_ids.shape}")
         
         # Pass the concatenated input_ids, attention_mask, and labels (if provided) to the model.
         # The T5 model expects input_ids and attention_mask for processing.
@@ -100,12 +85,9 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         print("--training_step --")    
         outputs = self.forward(
-            premise=batch['premise'],
-            initial=batch['initial'],
-            original_ending=batch['original_ending'],
-            counterfactual=batch['counterfactual'],
-            labels=batch['edited_ending'],
-            attention_mask=batch['attention_mask']
+            input_ids=batch['input_ids'],
+            attention_mask=batch['attention_mask'],
+            labels=batch['labels'],
         )
         loss = outputs.loss
         self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True)
@@ -124,37 +106,31 @@ class FlanT5FineTuner(pl.LightningModule):
         print("-- validation_step --")   
         # Forward pass to compute loss and model outputs
         outputs = self.forward(
-            premise=batch['premise'],
-            initial=batch['initial'],
-            original_ending=batch['original_ending'],
-            counterfactual=batch['counterfactual'],
-            labels=batch['edited_ending'],
-            attention_mask=batch['attention_mask']
+            input_ids=batch['input_ids'],
+            attention_mask=batch['attention_mask'],
+            labels=batch['labels'],
         )
         val_loss = outputs.loss
         self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
         # Generate text predictions from the model using the individual components
         generated_texts = self.generate_text(
-            premise=batch['premise'],
-            initial=batch['initial'],
-            original_ending=batch['original_ending'],
-            counterfactual=batch['counterfactual'],
+            input_ids=batch['input_ids'],
             attention_mask=batch['attention_mask']
         )
 
         # Decode the labels (ground truth edited ending) from the batch for comparison with the model's generated text.
-        edited_endings = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['edited_ending']]
+        edited_endings = batch['edited_ending']
 
         # Store output information for metric calculation at the end of the epoch
         output = {
             'generated': generated_texts,
             'edited_endings': edited_endings,
             # Add other story components for later use in metric calculations
-            'premises': [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['premise']],
-            'counterfactuals': [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['counterfactual']],
-            'original_endings': [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['original_ending']],
-            'initials': [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['initial']],
+            'premises': batch['premise'],
+            'counterfactuals': batch['counterfactual'],
+            'original_endings': batch['original_ending'],
+            'initials': batch['initial'],
         }
         self.current_val_step_outputs.append(output)
 
@@ -175,6 +151,7 @@ class FlanT5FineTuner(pl.LightningModule):
             edited_endings = output['edited_endings']
             
             # Calculate metrics for each generated-reference pair in the batch
+            # TODO: Change to Sacrebleu corpus level, remove for loop
             for gen, ref in zip(generated_texts, edited_endings):
                 # Compute BLEU & ROUGE scores for each story component compared to the edited ending
                 bleu_score = sentence_bleu([ref.split()], gen.split())
@@ -213,41 +190,11 @@ class FlanT5FineTuner(pl.LightningModule):
         Returns:
             dict: Output dictionary containing generated texts and metrics.
         """
-        print("-- test_step --")   
-        # Perform forward pass and compute loss
-        outputs = self.forward(
-            premise=batch['premise'],
-            initial=batch['initial'],
-            original_ending=batch['original_ending'],
-            counterfactual=batch['counterfactual'],
-            labels=batch['edited_ending'],
-            attention_mask=batch['attention_mask']
-        )
-        test_loss = outputs.loss
-        self.log('test_loss', test_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        
-        # Generate text using the model for the test batch.
-        generated_texts = self.generate_text(
-            premise=batch['premise'],
-            initial=batch['initial'],
-            original_ending=batch['original_ending'],
-            counterfactual=batch['counterfactual'],
-            attention_mask=batch.get('attention_mask')
-        )
-        
-        # Decode the actual labels from the batch to get the ground truth text.
-        decoded_targets = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in batch['edited_ending']]
-        
-        print(f"\nTest Step {batch_idx} - Batch Keys: {batch.keys()}")  # Print the keys in the batch for debugging
-        print(f"Generated Texts (first 2): {generated_texts[:2]}")  # Print the first 2 generated texts for inspection
-        print(f"Decoded Targets (first 2): {decoded_targets[:2]}")  # Print the first 2 decoded targets for inspection
-        
-        # Calculate custom metrics using the calculate_metrics method.
-        # logs the metrics internally. 
-        self.calculate_metrics(generated_texts, decoded_targets)
-
-        # Return the test loss
-        return {'test_loss': test_loss}
+    
+        return self.validation_step(batch, batch_idx)
+    
+    def on_test_epoch_end(self):
+        return self.on_validation_epoch_end()
 
     def calculate_metrics(self, generated_texts, edited_endings):
         """
@@ -314,20 +261,16 @@ class FlanT5FineTuner(pl.LightningModule):
         optimizer = torch.optim.AdamW(self.parameters(), lr=0.001)
         return optimizer
 
-    def generate_text(self, premise, initial, original_ending, counterfactual, attention_mask=None, max_length=512):
+    def generate_text(self, input_ids, attention_mask):
         """
         Generates text sequences from the provided input components using the model.
         """
         print("-- generate_text --") 
-        
-        # Concatenate the input components
-        input_ids = torch.cat([premise, initial, original_ending, counterfactual], dim=1)
 
         # Generate a tensor of token IDs based on the input_ids and attention_mask
-        generated_ids = self.model.generate(input_ids=input_ids, attention_mask=attention_mask, max_length=max_length)
+        generated_ids = self.model.generate(input_ids=input_ids, attention_mask=attention_mask)
         
         # Decode the generated token IDs back into human-readable text
         generated_texts = [self.tokenizer.decode(generated_id, skip_special_tokens=True, clean_up_tokenization_spaces=True) for generated_id in generated_ids]
         
         return generated_texts
-

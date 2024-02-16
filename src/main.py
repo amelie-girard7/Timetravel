@@ -1,6 +1,7 @@
 # src/main.py
 import os
 import sys
+import tokenizers
 import torch
 import logging
 from pytorch_lightning import Trainer
@@ -8,19 +9,26 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pathlib import Path
 
+
 # Append src to the system path for imports.
 # This allows the script to access the 'src' directory as if it were a package.
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # Importing custom modules.
+from transformers import T5Tokenizer
 from src.models.model_T5 import FlanT5FineTuner
 from src.data_loader import create_dataloaders
 from src.utils.utils import preprocess_data, collate_fn
 from src.utils.config import CONFIG
+from src.models.model_T5 import FlanT5FineTuner
 
 # Setup logging.
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Instantiate the tokenizer
+tokenizer = T5Tokenizer.from_pretrained('google/flan-t5-base')
+
 
 def setup_model():
     """
@@ -32,7 +40,7 @@ def setup_model():
     model = FlanT5FineTuner(CONFIG["model_name"])
     return model
 
-def setup_dataloaders(model):
+def setup_dataloaders(model, tokenizer):
     """
     Sets up PyTorch dataloaders for the training, validation, and test datasets.
     
@@ -107,7 +115,7 @@ def main():
     """
     try:
         model = setup_model()
-        dataloaders = setup_dataloaders(model)
+        dataloaders = setup_dataloaders(model, tokenizer)
         model_save_path = CONFIG["models_dir"]
         model_save_path.mkdir(exist_ok=True)
 
@@ -116,21 +124,6 @@ def main():
         train_dataloader = dataloaders['train_supervised_small_sample.json']
         valid_dataloader = dataloaders['dev_data_sample.json']
         test_dataloader = dataloaders['test_data_sample.json']
-
-        # Fetch the first batch from the training DataLoader
-        batch = next(iter(train_dataloader))
-
-        # Print out each key with the corresponding data shape, type, and a preview of the first few items for inspection
-        for key in batch.keys():
-            print(f"{key}:")
-            print(f"  - Type: {type(batch[key])}")
-            print(f"  - Dtype: {batch[key].dtype}")
-            print(f"  - Shape: {batch[key].shape}")
-            # Only print a preview if the key refers to tensor data
-            if torch.is_tensor(batch[key]):
-                print(f"  - Data (preview): {batch[key][:1]}")
-            else:
-                print(f"  - Data (preview): {batch[key][:1].tolist()}")
 
         # Start the training process.
         trainer.fit(model, train_dataloader, valid_dataloader)
@@ -143,4 +136,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

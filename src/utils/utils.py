@@ -7,7 +7,9 @@ import logging
 
 import torch
 from src.utils.config import CONFIG
-
+from torch.nn.utils.rnn import pad_sequence
+from transformers import T5Tokenizer
+PAD_TOKEN_ID = 0
 # Configure logger for the utils module
 logger = logging.getLogger(__name__)
 
@@ -50,9 +52,9 @@ def load_first_line_from_json(file_path):
     except Exception as e:
         logger.error(f"Error reading from {file_path}: {e}")
         raise IOError(f"Error reading from {file_path}: {e}")
-
+"""
 def preprocess_data(row):
-    """
+    
     Preprocess a single row of data to construct the input and output sequences for the model.
     
     Args:
@@ -60,7 +62,7 @@ def preprocess_data(row):
     
     Returns:
         pd.Series: A pandas Series containing the processed input and output sequences.
-    """
+    
     print(f"--- Preprocessing Dataset ---")
     try:
         # Extract fields from the row
@@ -70,9 +72,6 @@ def preprocess_data(row):
         counterfactual = row.get('counterfactual', "Missing counterfactual")
         edited_ending = row.get('edited_ending', ["Missing edited_ending"])
         
-        # Check if edited_ending is a list of lists, and if so, flatten it
-        if edited_ending and isinstance(edited_ending[0], list):
-            edited_ending = [item for sublist in edited_ending for item in sublist]
 
         # Ensure edited_ending is a list
         if not isinstance(edited_ending, list):
@@ -105,46 +104,13 @@ def preprocess_data(row):
             'counterfactual': "Error in counterfactual",
             'edited_ending': "Error in output"
         })
-
-"""        
-def collate_fn(batch, tokenizer):
-  
-    # Retrieve the separator token from the CONFIG, defaulting to "<s>" if not found
-    separator_token = CONFIG.get("separator_token", "<s>")
-    
-    # Initialize containers for the batch's tokenized data
-    tokenized_batch = {'input_ids': [], 'attention_mask': [], 'labels': []}
-
-    # Process each item in the batch
-    for item in batch:
-        # Create the concatenated sequence with the separator token
-        concatenated_sequence = f"{item['premise']} {item['initial']} {item['original_ending']} {separator_token} {item['initial']} {item['counterfactual']}"
-        
-
-        # Tokenize the concatenated sequence
-        tokenized_input = tokenizer(concatenated_sequence, padding='max_length', truncation=True, return_tensors="pt")
-        tokenized_batch['input_ids'].append(tokenized_input['input_ids'].squeeze(0))
-        tokenized_batch['attention_mask'].append(tokenized_input['attention_mask'].squeeze(0))
-
-        # Tokenize 'edited_ending' separately and use as labels
-        if 'edited_ending' in item:
-            tokenized_label = tokenizer(item['edited_ending'], padding='max_length', truncation=True, return_tensors="pt")["input_ids"]
-            tokenized_batch['labels'].append(tokenized_label.squeeze(0))
-
-    # Convert lists to tensors
-    tokenized_batch['input_ids'] = torch.stack(tokenized_batch['input_ids'])
-    tokenized_batch['attention_mask'] = torch.stack(tokenized_batch['attention_mask'])
-    if tokenized_batch['labels']:
-        tokenized_batch['labels'] = torch.stack(tokenized_batch['labels'])
-    
-    return tokenized_batch
 """
      
 
-# Tokenizing and concatenate  'premise', 'initial', 'original_ending' and 'counterfactual'
+"""
         
 def collate_fn(batch, tokenizer):
-    """
+    
     Tokenize and collate a batch of data for the T5 model.
     
     Args:
@@ -153,7 +119,7 @@ def collate_fn(batch, tokenizer):
     
     Returns:
         dict: A dictionary with tokenized inputs for each component and outputs, ready for model training or inference.
-    """
+    
     print("Starting collation of batch data")
     tokenized_batch = {}
     
@@ -169,3 +135,81 @@ def collate_fn(batch, tokenizer):
     
     print("Completed collation for current batch")
     return tokenized_batch
+"""
+
+def preprocess_data(row, tokenizer, max_length=512):
+    """
+    Preprocesses a single data row for T5 model input.
+    """
+    try:
+        # Define separator tokens and model-specific formatting.
+        separator_token = "</s>"
+        
+        # Construct the input sequence with proper formatting.
+        input_sequence = (
+            f"{row['premise']}"
+            f"{row['initial']}"
+            f"{row['original_ending']} {separator_token} "
+            f"{row['premise']} {row['counterfactual']}"
+        )
+        # TODO remove the padding : Why does it throw and error?
+        # Tokenize input_sequence and the edited_ending.
+        # TODO: Understand the max_seq_len to apply trunctation
+        tokenized_inputs = tokenizer.encode_plus(
+            input_sequence, truncation=True, return_tensors="pt", max_length=max_length
+        )
+        
+        # Constructing the output sequence (Edited Ending)
+        edited_ending_joined = ' '.join(row['edited_ending'])
+        
+        tokenized_ending = tokenizer.encode_plus(
+            edited_ending_joined, truncation=True, return_tensors="pt", max_length=max_length
+        )
+        
+        return {
+            'input_ids': tokenized_inputs['input_ids'].squeeze(0),
+            'attention_mask': tokenized_inputs['attention_mask'].squeeze(0),
+            'labels': tokenized_ending['input_ids'].squeeze(0),
+            # Include non-tokenized data for metric calculations if necessary.
+            'premise': row['premise'],
+            'initial': row['initial'],
+            'original_ending': row['original_ending'],
+            'counterfactual': row['counterfactual'],
+            'edited_ending': edited_ending_joined
+        }
+    except Exception as e:
+        logger.error(f"Error in preprocess_data: {e}")
+        return None
+
+
+def collate_fn(batch):
+    """
+    Collate function to process a batch of data and return the required
+    tensor formats for the model.
+    
+    Args:
+        batch (list): A list of dictionaries with keys 'input_ids', 'attention_mask', 'labels', etc.
+        tokenizer (PreTrainedTokenizer): Tokenizer to use for encoding the texts.
+    
+    Returns:
+        dict: A dictionary with keys 'input_ids', 'attention_mask', 'labels', etc.
+    """
+    print("Running custom collate function on batch of size {}".format(len(batch)))
+    
+    input_ids, attention_mask, labels, premise, initial, original_ending, counterfactual, edited_ending = list(zip(*batch))
+    # TODO: Try to pass the PAD_TOKEN_ID as a parameter to the collate_fn
+    input_ids = torch.nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=PAD_TOKEN_ID)
+    attention_mask = torch.nn.utils.rnn.pad_sequence(attention_mask, batch_first=True, padding_value=0)
+    labels = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=PAD_TOKEN_ID)
+
+    return {
+        'input_ids': input_ids,
+        'attention_mask': attention_mask,
+        'labels': labels,
+        # Additional fields for evaluation
+        'premise': premise,
+        'initial': initial,
+        'original_ending': original_ending,
+        'counterfactual': counterfactual,
+        'edited_ending': edited_ending,
+    }
