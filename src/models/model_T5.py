@@ -1,4 +1,5 @@
 # src/models/model_T5.py
+
 import torch
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 import pytorch_lightning as pl
@@ -6,22 +7,18 @@ from nltk.translate.bleu_score import sentence_bleu
 from rouge_score import rouge_scorer
 import logging
 
-from src.utils.config import CONFIG  # Import the CONFIG
-
+# Configurations and logger initialization
+from src.utils.config import CONFIG 
 logger = logging.getLogger(__name__)
 
 class FlanT5FineTuner(pl.LightningModule):
     """
-    This class defines a PyTorch Lightning model for fine-tuning a Flan-T5 model.
-    It handles the forward pass, training, validation, and testing steps.
+    Fine-tunes the FLAN-T5 model on a given dataset for narrative text generation tasks.
     """
 
     def __init__(self, model_name):
         """
-        Initializes the model components, tokenizer, and metrics scorer.
-        
-        Args:
-            model_name (str): The name of the T5 model to be used.
+        Initializes model, tokenizer, and evaluation metrics.
         """
         super().__init__()
         self.model = T5ForConditionalGeneration.from_pretrained(model_name)
@@ -39,29 +36,18 @@ class FlanT5FineTuner(pl.LightningModule):
     
     def forward(self, input_ids, attention_mask, labels):
         """
-        Performs the forward pass of the model.b4         
-        Args:-992            premise (Tensor): Tokenized tensor for the story premises.
-            initial (Tensor): Tokenized tensor for the initial states of the stories.
-            original_ending (Tensor): Tokenized tensor for the original endings of the stories.
-            counterfactual (Tensor): Tokenized tensor for the counterfactual (alternative scenarios) of the stories.
-            labels (Tensor, optional): Tokenized tensor for the edited endings, serving as labels for training. Default is None.
-            attention_mask (Tensor, optional): Tensor indicating which tokens should be attended to, and which should not.
-        
-        Returns:
-            The output from the T5 model, which includes loss when labels are provided, and logits otherwise.
-        """
+        Forward pass through the model. Calculates loss if labels are provided.
+        """       
         print("--forward pass--")
         
         if labels is not None:
             print(f"Labels shape: {labels.shape}")
         
-        # Pass the concatenated input_ids, attention_mask, and labels (if provided) to the model.
-        # The T5 model expects input_ids and attention_mask for processing.
-        # If labels are provided (during training), the model will also return the loss
-        # which can be used to update the model's weights.
+        # Pass the concatenated input_ids, attention_mask, and labels (if provided) to the model for processing.
         output = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
         
-        # If labels were provided, the model's output will include loss for training.
+        # If labels were provided, the model's output will include loss for training
+        # which can be used to update the model's weights
         # During inference (no labels), the model generates logits from which we can derive predictions.
         if labels is not None:
             print("Loss from model output:", output.loss.item())
@@ -73,17 +59,11 @@ class FlanT5FineTuner(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx):
-        """  
-        Defines the training logic for a single batch, where a forward pass is performed and the loss is calculated.
-
-        Args:
-            batch (dict): The batch of data provided by the DataLoader.
-            batch_idx (int): The index of the current batch.
-
-        Returns:
-            torch.Tensor: The loss value for the batch.
         """
-        print("--training_step --")    
+        Processes one batch of data during the training phase.
+        """
+        print("--training_step --") 
+           
         outputs = self.forward(
             input_ids=batch['input_ids'],
             attention_mask=batch['attention_mask'],
@@ -96,13 +76,9 @@ class FlanT5FineTuner(pl.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         """
-        Performs a validation step for a single batch.
-        It calculates the loss, generates predictions, and prepares data for metric calculation.
-        
-        Args:
-            batch (dict): The batch of data provided by the DataLoader.
-            batch_idx (int): The index of the current batch.
+        Processes one batch of data during the validation phase. Calculates metrics.
         """
+        
         print("-- validation_step --")   
         # Forward pass to compute loss and model outputs
         outputs = self.forward(
@@ -181,16 +157,8 @@ class FlanT5FineTuner(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         """
-        Called during the testing loop to perform a forward pass with a batch from the test set, calculate the loss, and optionally generate text.
-
-        Args:
-            batch (dict): The batch of data provided by the DataLoader.
-            batch_idx (int): The index of the current batch.
-
-        Returns:
-            dict: Output dictionary containing generated texts and metrics.
+        Processes one batch of data during the testing phase. Reuses validation logic.
         """
-    
         return self.validation_step(batch, batch_idx)
     
     def on_test_epoch_end(self):
@@ -248,11 +216,7 @@ class FlanT5FineTuner(pl.LightningModule):
 
     def configure_optimizers(self):
         """
-        Configure the optimizer for the model.
-        The optimizer is responsible for updating the model's weights to minimize the loss during training.
-            
-        Returns:
-            The optimizer to be used for training the model.
+        Configures the model's optimizer.
         """
         print("-- configure_optimizers --") 
         
@@ -263,7 +227,7 @@ class FlanT5FineTuner(pl.LightningModule):
 
     def generate_text(self, input_ids, attention_mask):
         """
-        Generates text sequences from the provided input components using the model.
+        Generates text based on input_ids and attention_mask.
         """
         print("-- generate_text --") 
 

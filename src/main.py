@@ -33,9 +33,6 @@ tokenizer = T5Tokenizer.from_pretrained('google/flan-t5-base')
 def setup_model():
     """
     Initializes and returns the Flan T5 model configured with the specified model name.
-    
-    Returns:
-        FlanT5FineTuner: The initialized Flan T5 model.
     """
     model = FlanT5FineTuner(CONFIG["model_name"])
     return model
@@ -43,12 +40,6 @@ def setup_model():
 def setup_dataloaders(model, tokenizer):
     """
     Sets up PyTorch dataloaders for the training, validation, and test datasets.
-    
-    Parameters:
-        model (FlanT5FineTuner): The model for which the dataloaders are being set up.
-    
-    Returns:
-        dict: A dictionary containing the training, validation, and test dataloaders.
     """
     data_path = CONFIG["data_dir"] / 'transformed'
     file_names = ['train_supervised_small_sample.json', 'dev_data_sample.json', 'test_data_sample.json']
@@ -71,12 +62,6 @@ def setup_dataloaders(model, tokenizer):
 def setup_trainer(model_save_path):
     """
     Configures the PyTorch Lightning trainer with checkpointing and TensorBoard logging.
-    
-    Parameters:
-        model_save_path (Path): Path where the model checkpoints will be saved.
-    
-    Returns:
-        Trainer: The configured PyTorch Lightning trainer.
     """
     checkpoint_callback = ModelCheckpoint(
         dirpath=model_save_path,

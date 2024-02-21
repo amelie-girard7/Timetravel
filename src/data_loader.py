@@ -11,9 +11,6 @@ from functools import partial
 class CustomJSONDataset(Dataset):
     """
     A PyTorch Dataset class that handles loading and preprocessing data from JSON files.
-    
-    Attributes:
-        processed_data (DataFrame): Contains the preprocessed data ready for model input.
     """
 
     def __init__(self, file_path, tokenizer):
@@ -40,12 +37,6 @@ class CustomJSONDataset(Dataset):
     def __getitem__(self, idx):
         """
         Retrieves an item by its index from the dataset.
-        
-        Parameters:
-            idx (int): Index of the item.
-        
-        Returns:
-            Series: The processed data at the given index.
         """
         print(f"---Dataloader getitem---")
         
@@ -59,19 +50,6 @@ class CustomJSONDataset(Dataset):
 def create_dataloaders(data_path, file_names, batch_size, tokenizer, num_workers=0):
     """
     Creates a dictionary of DataLoader objects for each specified JSON file.
-    
-    Parameters:
-        data_path (Path): Path to the directory where data files are stored.
-        file_names (list of str): List of JSON file names to create dataloaders for.
-        batch_size (int): Number of samples to be loaded per batch.
-        tokenizer (PreTrainedTokenizer): The tokenizer used for encoding the text data.
-        num_workers (int): Number of worker threads to use for data loading (default is 0, which means the data will be loaded in the main process).
-    
-    Returns:
-        dict: A dictionary mapping file names to their respective DataLoader.
-    
-    Raises:
-        FileNotFoundError: If a specified file does not exist in the data directory.
     """
     dataloaders = {}
     for file_name in file_names:
@@ -80,8 +58,7 @@ def create_dataloaders(data_path, file_names, batch_size, tokenizer, num_workers
         # Raise an error if the file doesn't exist
         if not file_path.exists():
             raise FileNotFoundError(f"{file_path} does not exist.")
-        
-        # Tokenizer only at data loading stage (not in collate function) to avoid repetition of tokenization mutltiple times
+
         # Create a custom dataset using the JSON file and the preprocess_data function directly
         dataset = CustomJSONDataset(file_path, tokenizer)  # Pass tokenizer here
 
