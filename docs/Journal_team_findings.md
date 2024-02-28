@@ -1,7 +1,31 @@
 # Team Notes on Model Training and Dataset Understanding
 
+## Meeting (24/02)
+These are the metrics agreed upon for Experiment 4
 
-## Overview (16/01)
+- Standard metric (either BLEU, ROUGE, BERTScore; any version):
+
+BLEU(prediction, edited_ending): high is desirable
+BLEU(prediction, counterfactual): high is desirable
+BLEU(prediction, initial): low is desirable
+BLEU(prediction, original_ending): low is desirable (probably... these are long strings, and may be rather similar also for effective predictions)
+
+We can compute the difference between the desirable scores and the undesrirable scores as a single, overall metric.
+
+To confirm the validity of the above assumptions, we can measure and report the following quantities on the dataset:
+BLEU(edited_ending, counterfactual): high is desirable
+BLEU(edited_ending, initial): low is desirable
+BLEU(edited_ending, original_ending): low is desirable (probably... these are long strings, and may be rather similar)
+
+We can assume that some of these quantities are an "upper bound" for the corresponding scores of the predictions, but I am not sure if this assumption will hold.
+For instance, one could assume that BLEU(edited_ending, counterfactual) is always > BLEU(prediction, counterfactual), but it may not be true. Logically, they should be similar.
+
+- BARTScore:
+everything said above applies also to BARTScore. We provide the same arguments in the required format, and expect the same trends.
+
+
+
+## Meeting (16/01)
 - The discussion highlights the shift from TensorFlow 1.x (classic use of `tf.Session()`) to TensorFlow 2.x and PyTorch, where the computational graph creation is automatic.
 - Emphasis is placed on the dataset from the 2019 paper, noting its value over the need to replicate the paper's experiments (Supervised Learning).
 

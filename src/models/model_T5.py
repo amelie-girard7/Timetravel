@@ -3,9 +3,18 @@
 import torch
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 import pytorch_lightning as pl
-from nltk.translate.bleu_score import sentence_bleu
-from rouge_score import rouge_scorer
+#from nltk.translate.bleu_score import sentence_bleu
+#from rouge_score import rouge_scorer
 import logging
+# evaluation
+from sacrebleu import corpus_bleu
+#from sacrerouge.metrics import Rouge
+from bert_score import score as bert_score
+#import spacy
+#from wmd import WMD
+
+import tempfile
+import files2rouge
 
 # Configurations and logger initialization
 from src.utils.config import CONFIG 
@@ -25,13 +34,12 @@ class FlanT5FineTuner(pl.LightningModule):
         self.tokenizer = T5Tokenizer.from_pretrained(model_name)
         
         # Initialize RougeScorer with all types of ROUGE metrics
-        rouge_types = ['rouge1', 'rouge2', 'rougeL', 'rougeLsum']
-        self.rouge_scorer = rouge_scorer.RougeScorer(rouge_types, use_stemmer=True)
-        self.rouge_types = rouge_types
+        #rouge_types = ['rouge1', 'rouge2', 'rougeL', 'rougeLsum']
+        #self.rouge_scorer = rouge_scorer.RougeScorer(rouge_types, use_stemmer=True)
+        #self.rouge_types = rouge_types
 
         # Initialize a list to store outputs for each validation step
         self.current_val_step_outputs = []
-    
     
     
     def forward(self, input_ids, attention_mask, labels):
@@ -47,15 +55,12 @@ class FlanT5FineTuner(pl.LightningModule):
         output = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
         
         # If labels were provided, the model's output will include loss for training
-        # which can be used to update the model's weights
-        # During inference (no labels), the model generates logits from which we can derive predictions.
         if labels is not None:
             print("Loss from model output:", output.loss.item())
         else:
             print("Model output generated without calculating loss (inference mode).")
         
         return output
-
 
 
     def training_step(self, batch, batch_idx):
@@ -95,63 +100,105 @@ class FlanT5FineTuner(pl.LightningModule):
             attention_mask=batch['attention_mask']
         )
 
-        # Decode the labels (ground truth edited ending) from the batch for comparison with the model's generated text.
-        edited_endings = batch['edited_ending']
+        # Store necessary components for later metric calculation
+        self.current_val_step_outputs.append({
+            'generated_texts': generated_texts,
+            'reference_texts': {
+                'edited_endings': batch['edited_ending'],
+                'premises': batch['premise'],
+                'counterfactuals': batch['counterfactual'],
+                'original_endings': batch['original_ending'],
+            }
+        })
 
-        # Store output information for metric calculation at the end of the epoch
-        output = {
-            'generated': generated_texts,
-            'edited_endings': edited_endings,
-            # Add other story components for later use in metric calculations
-            'premises': batch['premise'],
-            'counterfactuals': batch['counterfactual'],
-            'original_endings': batch['original_ending'],
-            'initials': batch['initial'],
+
+    
+    import subprocess
+    import tempfile
+
+    def calculate_metrics(self, generated_texts, reference_texts):
+        # Convert lists of generated and reference texts into strings
+        generated_text_str = "\n".join(generated_texts)
+        reference_text_str = "\n".join(["\n".join(refs) for refs in reference_texts])
+
+        # Write the strings to temporary files
+        with tempfile.NamedTemporaryFile(delete=False, mode='w') as gen_file, \
+            tempfile.NamedTemporaryFile(delete=False, mode='w') as ref_file:
+            gen_file.write(generated_text_str)
+            ref_file.write(reference_text_str)
+            gen_file_path = gen_file.name
+            ref_file_path = ref_file.name
+
+        # Use subprocess to call files2rouge
+        cmd = f'files2rouge {ref_file_path} {gen_file_path}'
+        try:
+            output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
+        except subprocess.CalledProcessError as e:
+            output = e.output  # If there's an error, capture the output
+
+        # Here you would parse the output from files2rouge to extract the ROUGE scores
+        # The parsing will depend on the exact format of the files2rouge output
+        # Example: rouge_scores = parse_files2rouge_output(output)
+
+        # Don't forget to calculate your BLEU and BERT scores as before
+        # Example:
+        # bleu_score = calculate_bleu(generated_texts, reference_texts)
+        # bert_scores = calculate_bert(generated_texts, reference_texts)
+
+        # Return a dictionary of your metrics
+        return {
+            'rouge': rouge_scores,  # Adjust this based on your actual parsing results
+            'bleu': bleu_score,
+            'bert_score': bert_scores
         }
-        self.current_val_step_outputs.append(output)
+
+    # Ensure to define or adjust functions like `parse_files2rouge_output`, `calculate_bleu`, and `calculate_bert`
+    # according to your needs and the actual output format of files2rouge, BLEU, and BERT scoring functions.
+
+    def parse_rouge_output(output):
+        # Placeholder function for parsing the ROUGE output from files2rouge
+        # You'll need to implement this based on the actual output format
+        rouge_scores = {}
+        # Parsing logic here
+        return rouge_scores
+
 
 
     def on_validation_epoch_end(self):
         """
-        Called at the end of the validation epoch to calculate and log metrics.
+        Organizes and aggregates the metrics for different types of reference texts, 
+        then logs them using PyTorch Lightning's logging mechanism.
         """
-        print("-- on_validation_epoch_end --")   
-        # Initialize variables to store aggregated metrics
-        aggregated_bleu_scores = 0
-        aggregated_rouge_scores = {rouge_type: {"precision": 0, "recall": 0, "fmeasure": 0} for rouge_type in self.rouge_types}
-        num_samples = len(self.current_val_step_outputs)  # Number of samples to average metrics over
+        # Initialize a dictionary to aggregate metrics for different types of reference texts.
+        aggregated_metrics = {}
 
-        # Loop through each output from the validation steps
+        # Loop over each output collected during the validation steps.
         for output in self.current_val_step_outputs:
-            generated_texts = output['generated']
-            edited_endings = output['edited_endings']
+            # Each output contains generated texts and their corresponding reference texts for different types.
+            for ref_type, refs in output['reference_texts'].items():
+                # Check if this type of reference text has already been encountered and initialized in the aggregator.
+                if ref_type not in aggregated_metrics:
+                    # If not, initialize an entry for this type with empty lists for generated and reference texts.
+                    aggregated_metrics[ref_type] = {'generated_texts': [], 'reference_texts': []}
+                
+                # Extend the lists of generated and reference texts for this type with the current output's data.
+                aggregated_metrics[ref_type]['generated_texts'].extend(output['generated_texts'])
+                aggregated_metrics[ref_type]['reference_texts'].extend(refs)
+
+        # Now, for each type of reference text, calculate and log the metrics.
+        for ref_type, data in aggregated_metrics.items():
+            # Calculate metrics using the aggregated generated and reference texts for this type.
+            metrics = self.calculate_metrics(data['generated_texts'], data['reference_texts'])
             
-            # Calculate metrics for each generated-reference pair in the batch
-            # TODO: Change to Sacrebleu corpus level, remove for loop
-            for gen, ref in zip(generated_texts, edited_endings):
-                # Compute BLEU & ROUGE scores for each story component compared to the edited ending
-                bleu_score = sentence_bleu([ref.split()], gen.split())
-                aggregated_bleu_scores += bleu_score
+            # Iterate over each metric calculated for this type of reference text.
+            for metric_name, metric_value in metrics.items():
+                # Log the metric value using PyTorch Lightning's logging mechanism.
+                # This includes the type of reference text and the metric name for clarity.
+                # For example, if ref_type is 'edited_endings', and the metric is BLEU, it logs as 'edited_endings_bleu'.
+                self.log(f'{ref_type}_{metric_name}', metric_value, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
-                rouge_scores = self.rouge_scorer.score(ref, gen)
-                for rouge_type, scores in rouge_scores.items():
-                    aggregated_rouge_scores[rouge_type]["precision"] += scores.precision
-                    aggregated_rouge_scores[rouge_type]["recall"] += scores.recall
-                    aggregated_rouge_scores[rouge_type]["fmeasure"] += scores.fmeasure
-
-        # Compute and log average BLEU & ROUGE scores across all validation data
-        avg_bleu = aggregated_bleu_scores / num_samples
-        self.log('avg_bleu', avg_bleu, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-
-        for rouge_type in self.rouge_types:
-            avg_precision = aggregated_rouge_scores[rouge_type]["precision"] / num_samples
-            avg_recall = aggregated_rouge_scores[rouge_type]["recall"] / num_samples
-            avg_fmeasure = aggregated_rouge_scores[rouge_type]["fmeasure"] / num_samples
-            self.log(f'{rouge_type}_avg_precision', avg_precision, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            self.log(f'{rouge_type}_avg_recall', avg_recall, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            self.log(f'{rouge_type}_avg_fmeasure', avg_fmeasure, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-
-        # Clear the list of outputs for the next epoch
+        # Clear the list of outputs to prepare for the next validation epoch.
+        # This is necessary to prevent carrying over data from the previous epochs.
         self.current_val_step_outputs = []
 
 
@@ -164,66 +211,6 @@ class FlanT5FineTuner(pl.LightningModule):
     def on_test_epoch_end(self):
         return self.on_validation_epoch_end()
 
-    def calculate_metrics(self, generated_texts, edited_endings):
-        """
-        Calculates and logs metrics for the generated texts against the edited endings.
-        """
-        print("-- calculate_metrics --") 
-        # Initialize variables to store aggregated metrics
-        aggregated_bleu_score = 0
-        aggregated_rouge_scores = {rouge_type: {"precision": 0, "recall": 0, "fmeasure": 0} for rouge_type in self.rouge_types}
-
-        # Check if generated_texts and edited_endings are lists and have the same length
-        if not isinstance(generated_texts, list) or not isinstance(edited_endings, list):
-            self.log("error", "Both generated_texts and edited_endings must be lists.")
-            return
-        if len(generated_texts) != len(edited_endings):
-            self.log("error", "generated_texts and edited_endings must have the same number of elements.")
-            return
-
-        # Calculate metrics for each generated-target pair
-        for gen_text, target_text in zip(generated_texts, edited_endings):
-            # Compute BLEU score
-            try:
-                bleu_score = sentence_bleu([target_text.split()], gen_text.split())
-                aggregated_bleu_score += bleu_score
-            except Exception as e:
-                self.log("error", f"Error calculating BLEU score: {e}")
-
-            # Compute ROUGE scores
-            try:
-                rouge_scores = self.rouge_scorer.score(target_text, gen_text)
-                for rouge_type, scores in rouge_scores.items():
-                    aggregated_rouge_scores[rouge_type]["precision"] += scores.precision
-                    aggregated_rouge_scores[rouge_type]["recall"] += scores.recall
-                    aggregated_rouge_scores[rouge_type]["fmeasure"] += scores.fmeasure
-            except Exception as e:
-                self.log("error", f"Error calculating ROUGE scores: {e}")
-
-        # Compute average scores and log them
-        num_samples = len(generated_texts)
-        avg_bleu = aggregated_bleu_score / num_samples if num_samples > 0 else 0
-        self.log('avg_bleu', avg_bleu, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-
-        for rouge_type in self.rouge_types:
-            avg_precision = aggregated_rouge_scores[rouge_type]["precision"] / num_samples if num_samples > 0 else 0
-            avg_recall = aggregated_rouge_scores[rouge_type]["recall"] / num_samples if num_samples > 0 else 0
-            avg_fmeasure = aggregated_rouge_scores[rouge_type]["fmeasure"] / num_samples if num_samples > 0 else 0
-            self.log(f'{rouge_type}_avg_precision', avg_precision, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            self.log(f'{rouge_type}_avg_recall', avg_recall, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            self.log(f'{rouge_type}_avg_fmeasure', avg_fmeasure, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-
-
-    def configure_optimizers(self):
-        """
-        Configures the model's optimizer.
-        """
-        print("-- configure_optimizers --") 
-        
-        #lr = CONFIG.get("learning_rate", 2e-5)  # Fetch the learning rate from CONFIG with a default
-        #return torch.optim.AdamW(self.model.parameters(), lr=lr)
-        optimizer = torch.optim.AdamW(self.parameters(), lr=0.001)
-        return optimizer
 
     def generate_text(self, input_ids, attention_mask):
         """
@@ -238,3 +225,14 @@ class FlanT5FineTuner(pl.LightningModule):
         generated_texts = [self.tokenizer.decode(generated_id, skip_special_tokens=True, clean_up_tokenization_spaces=True) for generated_id in generated_ids]
         
         return generated_texts
+    
+    def configure_optimizers(self):
+        """
+        Configures the model's optimizer.
+        """
+        print("-- configure_optimizers --") 
+        
+        #lr = CONFIG.get("learning_rate", 2e-5)  # Fetch the learning rate from CONFIG with a default
+        #return torch.optim.AdamW(self.model.parameters(), lr=lr)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=0.001)
+        return optimizer

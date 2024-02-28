@@ -679,6 +679,24 @@ If you find our dataset or code useful in your research, please consider citing 
 }
 ```
 
+
+## Installation 
+This is the installation instructions:
+# 0) Install prerequistes
+pip install -U git+https://github.com/pltrdy/pyrouge
+
+# 1) Install files2rouge (you can save this file in your project and track
+changes in github)
+git clone https://github.com/pltrdy/files2rouge
+cd src/files2rouge
+python setup_rouge.py
+python setup.py install
+cd ../..
+
+
+
+
+
 ## References
 
 - [1] Pearl, J., & Mackenzie, D. (2019). *The book of why*. Penguin Books.

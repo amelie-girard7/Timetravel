@@ -3,11 +3,8 @@
 #from fileinput import filename
 import json
 import logging
-#import pandas as pd
 import torch
-from torch.nn.utils.rnn import pad_sequence
-#from transformers import T5Tokenizer
-#from src.utils.config import CONFIG
+import torch.nn.utils.rnn
 
 
 # Global constant for padding token ID, set to 0 by default for T5.
@@ -62,7 +59,7 @@ def preprocess_data(row, tokenizer, max_length=512):
             f"{row['original_ending']} {separator_token} "
             f"{row['premise']} {row['counterfactual']}"
         )
-        print(f"Constructed input sequence: {input_sequence[:50]}...")
+        print(f"Constructed input sequence: {input_sequence[:128]}...")
         
         # Tokenize the input sequence with truncation to max_length and no padding here.
         tokenized_inputs = tokenizer.encode_plus(

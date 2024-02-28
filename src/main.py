@@ -18,9 +18,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from transformers import T5Tokenizer
 from src.models.model_T5 import FlanT5FineTuner
 from src.data_loader import create_dataloaders
-from src.utils.utils import preprocess_data, collate_fn
 from src.utils.config import CONFIG
-from src.models.model_T5 import FlanT5FineTuner
 
 # Setup logging.
 logging.basicConfig(level=logging.INFO)
