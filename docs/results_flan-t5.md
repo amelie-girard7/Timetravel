@@ -28,7 +28,8 @@ This page presnets the results of the experiments of the model flan-t5 and compa
 
 # Introduction
 
-The main objective of this experiment is to assess the efficacy of the flan-t5-base model. This assessment is initiated by utilizing well-established evaluation metrics such as BLEU and ROUGE, and then incorporates metrics that are more sensitive to context, such as BERT and BART. The data for this evaluation consists of stories that have undergone modifications to include a counterfactual scenario. The goal is to determine the model's proficiency in altering the story's conclusion to mirror the introduced counterfactual element. The dataset structure is as follows:
+The main objective of this experiment is to assess the efficacy of the flan-t5-base model. This assessment is initiated by utilizing well-established evaluation metrics such as BLEU and ROUGE, and then incorporates metrics that are more sensitive to context, such as BERT and BART. The data for this evaluation consists of stories that have undergone modifications of the ending (edited_ending ) based a counterfactual scenario. The goal is to determine the model's proficiency in altering the story's ending to mirror the introduced counterfactual.
+We are in the context of supervised learning. The dataset structure is as follows:
 
 - **Premise**: The story's initial context (e.g., "Andrea wanted a picture of her jumping.").
 - **Initial**: The event that precedes the counterfactual change (e.g., "She set the camera up.").
@@ -196,26 +197,21 @@ In this experiement we have changed `input_sequence` from the paper format ( pre
 
 The table and analysis illustrate that the changes made in Experiment 3's input sequence format had minimal impact on most performance metrics, with the exception of a somewhat more pronounced increase in validation loss. This provides some insight into the effects of input formatting used in the original paper on the model performance.
 
-## Experiment 4 (28/02)
+## Experiment 4
 
 The metrics selected for Experiment 4 are:
 
-- A standard metric (BLEU, ROUGE, BERTScore; any version) with the following guidelines:
+#### Bleu score:
 
-BLEU(prediction, edited_ending): Higher scores are preferred.
-BLEU(prediction, counterfactual): Higher scores are preferred.
-BLEU(prediction, initial): Lower scores are preferred.
-BLEU(prediction, original_ending): Lower scores are preferred (though the strings are lengthy and may still be somewhat similar for effective predictions).
+We use the bleu score to calculate the below story components:
 
-A composite metric can be derived by calculating the difference between the desired and undesired scores.
+BLEU(generated_text, edited_ending)
+BLEU(generated_text, counterfactual
+BLEU(generated_text, initial)
+BLEU(generated_text, original_ending)
 
-To validate these hypotheses, the following metrics will be calculated and reported for the dataset:
-BLEU(edited_ending, counterfactual): Higher scores are preferred.
-BLEU(edited_ending, initial): Lower scores are preferred.
-BLEU(edited_ending, original_ending): Lower scores are preferred (although the long strings may result in similarities).
+BLEU(edited_ending, counterfactual)
+BLEU(edited_ending, initial)
+BLEU(edited_ending, original_ending)
 
-It's hypothesized that some of these measures could serve as an "upper limit" for the model's prediction scores, although this remains uncertain. For example, it might be presumed that BLEU(edited_ending, counterfactual) will always exceed BLEU(prediction, counterfactual), but this is not guaranteed. Ideally, their scores should be comparable.
-
-- BARTScore:
-The considerations mentioned above also apply to BARTScore. The same arguments are provided in the required format, with identical trends expected.
-
+Where edited_ending is the label 

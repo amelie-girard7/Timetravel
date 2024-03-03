@@ -5,10 +5,10 @@ These are the metrics agreed upon for Experiment 4
 
 - Standard metric (either BLEU, ROUGE, BERTScore; any version):
 
-BLEU(prediction, edited_ending): high is desirable
-BLEU(prediction, counterfactual): high is desirable
-BLEU(prediction, initial): low is desirable
-BLEU(prediction, original_ending): low is desirable (probably... these are long strings, and may be rather similar also for effective predictions)
+BLEU(generated-text, edited_ending): high is desirable 
+BLEU(generated-text, counterfactual): high is desirable
+BLEU(generated-text, initial): low is desirable
+BLEU(generated-text, original_ending): low is desirable (probably... these are long strings, and may be rather similar also for effective predictions)
 
 We can compute the difference between the desirable scores and the undesrirable scores as a single, overall metric.
 
@@ -23,7 +23,8 @@ For instance, one could assume that BLEU(edited_ending, counterfactual) is alway
 - BARTScore:
 everything said above applies also to BARTScore. We provide the same arguments in the required format, and expect the same trends.
 
-
+Here 
+edited_ending : labels 
 
 ## Meeting (16/01)
 - The discussion highlights the shift from TensorFlow 1.x (classic use of `tf.Session()`) to TensorFlow 2.x and PyTorch, where the computational graph creation is automatic.
