@@ -203,15 +203,30 @@ The metrics selected for Experiment 4 are:
 
 #### Bleu score:
 
-We use the bleu score to calculate the below story components:
+Interpreting the SacreBLEU scores requires understanding how BLEU scores function in the context of natural language processing. BLEU (Bilingual Evaluation Understudy) scores compare machine-generated text to reference texts, assessing the quality of the generated text. The scores range from 0 to 100, where higher scores indicate greater similarity between the generated text and the reference text, suggesting better quality generation.
 
-BLEU(generated_text, edited_ending)
-BLEU(generated_text, counterfactual
-BLEU(generated_text, initial)
-BLEU(generated_text, original_ending)
+The SacreBLEU metric extends the original BLEU by providing a standardized way to calculate BLEU scores, ensuring consistent and comparable scores across different evaluations. It does this by taking the generated text (hypotheses) and comparing it against one or more reference texts. These comparisons are done on the corpus level, meaning SacreBLEU considers the entire set of generated texts and their corresponding reference texts as a whole, rather than evaluating each pair in isolation. This approach helps mitigate some of the variability and potential biases that can arise from sentence-level evaluations.
 
-BLEU(edited_ending, counterfactual)
-BLEU(edited_ending, initial)
-BLEU(edited_ending, original_ending)
+Given your interpretation criteria and the SacreBLEU scores you've obtained, let's break down what these scores suggest about your model's performance:
 
-Where edited_ending is the label 
+| Metric                           | Score               | Interpretation Criteria         | Interpretation                                                                                     |
+|----------------------------------|---------------------|---------------------------------|----------------------------------------------------------------------------------------------------|
+| BLEU(generated-text, edited_ending)  | 81.499              | High is desirable               | Indicates a high degree of similarity between the generated text and the labels, suggesting effective learning and generation capabilities.            |
+| BLEU(generated-text, counterfactual) | 16.467              | High is desirable               | A lower score here might be expected, as the counterfactual introduces a hypothetical change not necessarily reflected in the text directly. This score suggests room for improvement in integrating counterfactual nuances. |
+| BLEU(generated-text, initial)        | 16.617              | Low is desirable                | The model does not overly rely on the initial event in generating the ending, which is desirable as it shows adaptability to the counterfactual change.  |
+| BLEU(generated-text, original_ending)| 95.262              | Low is desirable (probably)     | A high score indicates the generated text is very similar to the original ending, which might suggest a lack of sufficient adaptation to the counterfactual change. However, considering these are long strings and may be inherently similar for effective predictions, this might not be entirely negative. |
+
+Based on your criteria, let's also consider the BLEU scores between the edited endings and other story components as a way to establish a baseline or "upper bound" for the corresponding scores of the predictions:
+
+| Metric                                | Score               | Interpretation Criteria         | Interpretation                                                                                     |
+|---------------------------------------|---------------------|---------------------------------|----------------------------------------------------------------------------------------------------|
+| BLEU(edited_ending, counterfactual)   | 13.745              | High is desirable               | Indicates that the labels share some similarity with the counterfactual scenarios but also suggests room for nuanced interpretation and generation by the model. |
+| BLEU(edited_ending, initial)          | 10.881              | Low is desirable                | Aligns with the expectation that the edited endings should diverge from the initial event, suggesting the model should focus on integrating the counterfactual change rather than mimicking the initial scenario. |
+| BLEU(edited_ending, original_ending)  | 83.130              | Low is desirable (probably)     | A high score suggests that the edited endings are quite similar to the original endings, providing a context where the model might inherently score high when comparing generated text to the original ending due to the similarity in structure and content between the edited and original endings. |
+
+Note: ( to be discussed)
+BLEU(edited_ending, original_ending) : I don't agree with this interpretation criteria in the paper High is desirable. Minimum changes to the story ending based on the counterfactual was desired.
+
+The model shows strong alignment with the edited endings, indicating effective learning and prediction capabilities. The lower scores with the counterfactual and initial scenarios suggest that while the model adapts to the counterfactual changes, there's potential for further refinement to better integrate these nuances into the generated text. The high similarity between generated texts and the original ending suggests a need to ensure the model sufficiently diverges in response to counterfactual changes, although this interpretation is nuanced by the inherent similarity between edited and original endings in your dataset.
+
+#### Rouge score:
