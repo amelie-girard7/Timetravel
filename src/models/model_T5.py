@@ -2,10 +2,14 @@
 import torch
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 import pytorch_lightning as pl
-#from nltk.translate.bleu_score import sentence_bleu
-#from rouge_score import rouge_scorer
 from sacrebleu.metrics import BLEU
-from sacrebleu import corpus_bleu
+from rouge import Rouge
+from sentence_transformers import SentenceTransformer, util as sentence_transformers_util
+from transformers import BartModel, BartTokenizer
+from torch.nn.functional import cosine_similarity
+
+
+
 
 import logging
 
@@ -31,14 +35,15 @@ class FlanT5FineTuner(pl.LightningModule):
         self.tokenizer = T5Tokenizer.from_pretrained(model_name)
         
         # Initialise sacre bleu
-        self.sacre_bleu = BLEU()
-
-        # Initialize RougeScorer with all types of ROUGE metrics
-        """
-        rouge_types = ['rouge1', 'rouge2', 'rougeL', 'rougeLsum']
-        self.rouge_scorer = rouge_scorer.RougeScorer(rouge_types, use_stemmer=True)
-        self.rouge_types = rouge_types
-        """
+        self.sacre_bleu = BLEU()      
+        # Initialize Rouge
+        self.rouge = Rouge()
+        # Initialise BERT
+        self.sentence_transformer = SentenceTransformer('all-MiniLM-L6-v2')
+        
+        # Initialise BART for similarity metric
+        self.bart_model = BartModel.from_pretrained('facebook/bart-large')
+        self.bart_tokenizer = BartTokenizer.from_pretrained('facebook/bart-large')
         
         # Initialize a list to store outputs for each validation step
         self.current_val_step_outputs = []
@@ -153,9 +158,11 @@ class FlanT5FineTuner(pl.LightningModule):
         self.current_val_step_outputs.append(output)
         print(f"Validation step {batch_idx} completed.")
 
-
-
+        
     def on_validation_epoch_end(self):
+        """
+        Handles operations to perform at the end of each validation epoch.
+        """
         print("-- on_validation_epoch_end --")
         # Prepare lists to store generated texts and their corresponding references
         all_generated_texts = []
@@ -171,66 +178,193 @@ class FlanT5FineTuner(pl.LightningModule):
             all_counterfactuals.extend(output['counterfactuals'])
             all_initials.extend(output['initials'])
             all_original_endings.extend(output['original_endings'])
-        print("Aggregated texts for BLEU score calculation.")
+            
+       
+        print("Aggregated texts for BLEU and ROUGE  and BERT similarity score calculation.")
 
-        # Convert lists for edited_endings to the format expected by SacreBLEU
-        all_edited_endings_refs = [[ending] for ending in all_edited_endings]
+        # Calculate and log BLEU similarity scores for various comparisons
+        self.calculate_and_log_bleu_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
 
-        # Calculate and log BLEU scores for generated_text vs. story components
+        # Calculate and log ROUGE similarity scores for various comparisons
+        self.calculate_and_log_rouge_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        
+        # Calculate and log BERT similarity scores for various comparisons 
+        self.calculate_and_log_bert_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        
+        # Calculate and log BART similarity scores
+        self.calculate_and_log_bart_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+
+
+
+        # Clear the list of outputs for the next epoch
+        self.current_val_step_outputs = []
+        print("Validation epoch ended. Metrics logged.")
+        
+
+    def calculate_and_log_bleu_scores(self, all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings):
+        """
+        Calculates and logs BLEU scores for generated texts against various reference components.
+        """
+        # Prepare reference lists for BLEU calculations
+        edited_endings_refs = [[ending] for ending in all_edited_endings]
+        counterfactuals_refs = [[cf] for cf in all_counterfactuals]
+        initials_refs = [[init] for init in all_initials]
+        original_endings_refs = [[orig] for orig in all_original_endings]
+
+        # Calculate and log BLEU scores for generated_text vs. story components (edited_ending, cunterfactual,initial and original_endings )
         comparisons = [
-            ('bleu_prediction_edited', all_generated_texts, all_edited_endings_refs),
-            ('bleu_prediction_cf', all_generated_texts, [[cf] for cf in all_counterfactuals]),
-            ('bleu_prediction_initial', all_generated_texts, [[init] for init in all_initials]),
-            ('bleu_prediction_original', all_generated_texts, [[orig] for orig in all_original_endings]),
+            ('bleu_prediction_edited', all_generated_texts, edited_endings_refs),
+            ('bleu_prediction_cf', all_generated_texts, counterfactuals_refs),
+            ('bleu_prediction_initial', all_generated_texts, initials_refs),
+            ('bleu_prediction_original', all_generated_texts, original_endings_refs),
         ]
-        for label, hypotheses, references in comparisons:
-            bleu_score = self.sacre_bleu.corpus_score(hypotheses, references)
-            self.log(label, bleu_score.score, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            print(f"{label}: {bleu_score.score}")
-
+        
         # Calculate and log BLEU scores for edited_ending vs. other story components
         edited_comparisons = [
             ('bleu_edited_ending_cf', all_edited_endings, all_counterfactuals),
             ('bleu_edited_ending_initial', all_edited_endings, all_initials),
             ('bleu_edited_ending_original', all_edited_endings, all_original_endings),
         ]
-        for label, edited_texts, component in edited_comparisons:
-            bleu_score = self.sacre_bleu.corpus_score(edited_texts, [[comp] for comp in component])
-            self.log(label, bleu_score.score, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            print(f"{label}: {bleu_score.score}")
-
-        # Clear the list of outputs for the next epoch
-        self.current_val_step_outputs = []
-        print("Validation epoch ended. Metrics logged.")
-
-
-    def calculate_metrics(self, generated_texts, edited_endings):
-        print("-- calculate_metrics --")
-        # Initialize the BLEU scorer
-        bleu_scorer = BLEU()
-
-        # Ensure generated_texts and edited_endings are lists
-        if not isinstance(generated_texts, list) or not isinstance(edited_endings, list):
-            self.log("error", "Both generated_texts and edited_endings must be lists.")
-            return
-        if len(generated_texts) != len(edited_endings):
-            self.log("error", "generated_texts and edited_endings must have the same number of elements.")
-            return
         
-        # Prepare the references and hypotheses for SacreBLEU
-        # SacreBLEU expects a list of references for each hypothesis, hence the nested list comprehension
-        references = [[ending] for ending in edited_endings]
-        hypotheses = generated_texts
+        # Combine all comparisons into a single list for processing
+        all_comparisons = comparisons + edited_comparisons
+
+        # Calculate and log BLEU scores for each comparison
+        for label, texts, references in all_comparisons:
+            try:
+                # Directly calculate the BLEU score and assume it to be a float
+                bleu_result = self.sacre_bleu.corpus_score(texts, references)
+                # The bleu_result.score is already a float representing the BLEU score
+                bleu_score = bleu_result.score  # This is correct and should not cause an issue
+
+                # Log the BLEU score
+                self.log(label, bleu_score, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                print(f"{label}: {bleu_score}")
+            except Exception as e:
+                print(f"Error calculating {label}: {e}")
+
+
+    def calculate_and_log_rouge_scores(self, all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings):
+        """
+        Calculates and logs ROUGE scores for the generated texts against various components,
+        and also for edited endings against other story components.
+        """
+        print("Calculating ROUGE scores...")
+        # Original comparisons for generated texts
+        rouge_score_comparisons = [
+            ('rouge_prediction_edited', all_generated_texts, all_edited_endings),
+            ('rouge_prediction_cf', all_generated_texts, all_counterfactuals),
+            ('rouge_prediction_initial', all_generated_texts, all_initials),
+            ('rouge_prediction_original', all_generated_texts, all_original_endings),
+        ]
+
+        # Additional comparisons for edited endings vs. other story components
+        edited_comparisons = [
+            ('rouge_edited_ending_cf', all_edited_endings, all_counterfactuals),
+            ('rouge_edited_ending_initial', all_edited_endings, all_initials),
+            ('rouge_edited_ending_original', all_edited_endings, all_original_endings),
+        ]
+
+        # Combine all comparisons into a single list for processing
+        all_comparisons = rouge_score_comparisons + edited_comparisons
+
+        for label, hypotheses, references in all_comparisons:
+            rouge_scores = self.rouge.get_scores(hypotheses, references, avg=True)
+            print(f"{label}: {rouge_scores}")
+
+            # Log ROUGE scores
+            for score_type in ['rouge-1', 'rouge-2', 'rouge-l']:
+                if score_type in rouge_scores:
+                    self.log(f"{label}_{score_type}_f", rouge_scores[score_type]['f'], on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                    self.log(f"{label}_{score_type}_p", rouge_scores[score_type]['p'], on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                    self.log(f"{label}_{score_type}_r", rouge_scores[score_type]['r'], on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                    print(f"{label}_{score_type} F1: {rouge_scores[score_type]['f']} Precision: {rouge_scores[score_type]['p']} Recall: {rouge_scores[score_type]['r']}")
+
+    
+    def calculate_and_log_bert_similarity(self, all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings):
+        """
+        Calculates and logs BERT similarity scores for generated texts against various components,
+        and also for edited endings against other story components.
+        """
+        print("Calculating BERT similarity scores...")
         
-        # Calculate BLEU score
-        try:
-            # Note that SacreBLEU's corpus_bleu expects list of list of references and list of hypotheses
-            bleu_score = bleu_scorer.corpus_score(hypotheses, references)
-            aggregated_bleu_score = bleu_score.score
-            self.log('avg_bleu', aggregated_bleu_score, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        except Exception as e:
-            self.log("error", f"Error calculating BLEU score: {e}")
+        # Define the original and edited comparisons
+        original_comparisons = [
+            ('bert_prediction_edited', all_generated_texts, all_edited_endings),
+            ('bert_prediction_cf', all_generated_texts, all_counterfactuals),
+            ('bert_prediction_initial', all_generated_texts, all_initials),
+            ('bert_prediction_original', all_generated_texts, all_original_endings),
+        ]
+        edited_comparisons = [
+            ('bert_edited_ending_cf', all_edited_endings, all_counterfactuals),
+            ('bert_edited_ending_initial', all_edited_endings, all_initials),
+            ('bert_edited_ending_original', all_edited_endings, all_original_endings),
+        ]
+
+        # Combine all comparisons into a single list for processing
+        all_comparisons = original_comparisons + edited_comparisons
+
+        # Calculate and log BERT similarity scores for each comparison
+        for label, texts_a, texts_b in all_comparisons:
+            embeddings_a = self.sentence_transformer.encode(texts_a, convert_to_tensor=True)
+            embeddings_b = self.sentence_transformer.encode(texts_b, convert_to_tensor=True)
             
+            # Compute cosine similarities for each pair of texts
+            cosine_scores = sentence_transformers_util.cos_sim(embeddings_a, embeddings_b)
+            
+            # For each text pair, find the highest similarity with any reference
+            max_similarities = cosine_scores.max(dim=1).values
+            
+            # Log average of the maximum similarity scores
+            avg_similarity = max_similarities.mean().item()
+            self.log(label, avg_similarity, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            print(f"{label}: {avg_similarity}")
+
+    
+    def calculate_and_log_bart_similarity(self, all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings):
+        """
+        Calculates and logs BART-based similarity scores.
+        """
+        print("Calculating BART similarity scores...")
+        
+        # Assuming you have a method to generate embeddings with BART
+        # This is a simplified placeholder showing the concept
+        def get_bart_embeddings(texts):
+            encoded_input = self.bart_tokenizer(texts, return_tensors='pt', padding=True, truncation=True, max_length=512)
+            with torch.no_grad():
+                model_output = self.bart_model(**encoded_input)
+            embeddings = model_output.last_hidden_state.mean(dim=1)  # Mean pooling
+            return embeddings
+
+        # Define comparisons similar to BERT
+        comparisons = [
+            ('bart_prediction_edited', all_generated_texts, all_edited_endings),
+            ('bart_prediction_cf', all_generated_texts, all_counterfactuals),
+            ('bart_prediction_initial', all_generated_texts, all_initials),
+            ('bart_prediction_original', all_generated_texts, all_original_endings),
+        ]
+        
+        edited_comparisons = [
+            ('bart_edited_ending_cf', all_edited_endings, all_counterfactuals),
+            ('bart_edited_ending_initial', all_edited_endings, all_initials),
+            ('bart_edited_ending_original', all_edited_endings, all_original_endings),
+        ]
+
+        # Combine all comparisons into a single list for processing
+        all_comparisons = comparisons + edited_comparisons
+
+        # Calculate and log similarity scores for each comparison
+        for label, texts_a, texts_b in all_comparisons:
+            embeddings_a = get_bart_embeddings(texts_a)
+            embeddings_b = get_bart_embeddings(texts_b)
+
+            # Calculate cosine similarity and log the average similarity score
+            for i, embedding_a in enumerate(embeddings_a):
+                similarities = [cosine_similarity(embedding_a.unsqueeze(0), embedding_b.unsqueeze(0)).item() for embedding_b in embeddings_b]
+                avg_similarity = sum(similarities) / len(similarities)
+                self.log(f'{label}_{i}', avg_similarity, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+
+
             
     def test_step(self, batch, batch_idx):
         """
