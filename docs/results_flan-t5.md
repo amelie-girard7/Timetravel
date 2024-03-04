@@ -201,24 +201,24 @@ The table and analysis illustrate that the changes made in Experiment 3's input 
 
 These are the metrics agreed upon for Experiment 4
 
-- Standard metric (either BLEU, ROUGE, BERTScore; any version):
+**Standard metric (either BLEU, ROUGE, BERTScore; any version):**
 
-(prediction, edited_ending): high is desirable 
-(prediction, counterfactual): high is desirable
-(prediction, initial): low is desirable
-(generated-text, original_ending): low is desirable (probably... these are long strings, and may be rather similar also for effective predictions)
+-  (prediction, edited_ending): high is desirable 
+-  (prediction, counterfactual): high is desirable
+-  (prediction, initial): low is desirable
+-  (generated-text, original_ending): low is desirable (probably... these are long strings, and may be rather similar also for effective predictions)
 
 We can compute the difference between the desirable scores and the undesrirable scores as a single, overall metric.
 
 To confirm the validity of the above assumptions, we can measure and report the following quantities on the dataset:
-(edited_ending, counterfactual): high is desirable
-(edited_ending, initial): low is desirable
-(edited_ending, original_ending): low is desirable (probably... these are long strings, and may be rather similar)
+-  (edited_ending, counterfactual): high is desirable
+-  (edited_ending, initial): low is desirable
+-  (edited_ending, original_ending): low is desirable (probably... these are long strings, and may be rather similar)
 
 We can assume that some of these quantities are an "upper bound" for the corresponding scores of the predictions, but I am not sure if this assumption will hold.
 For instance, one could assume that BLEU(edited_ending, counterfactual) is always > BLEU(prediction, counterfactual), but it may not be true. Logically, they should be similar.
 
-- BARTScore:
+**BARTScore:**
 everything said above applies also to BARTScore. We provide the same arguments in the required format, and expect the same trends.
 
 Here 
