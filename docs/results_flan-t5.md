@@ -328,4 +328,5 @@ Understood, let's enhance the interpretations to focus more on the implications 
 | BLEU        | Prediction vs. Initial             | 16.617429733276367     | 0-100  | Low             | Indicates the model's creative departure from the initial setup, but suggests further room for diversification.                     |
 | BLEU        | Prediction vs. Original            | 95.26201629638672      | 0-100  | Low             | The high precision score reveals the model's tendency to replicate original narratives closely, highlighting a need for more novelty.|
 
-These interpretations are crafted to provide insights into the model's performance in adapting and transforming narratives based on the given scores, emphasizing areas of strength and potential improvement without repeating the details of the comparisons.
+These interpretations are crafted to provide insights into the model's performance. We need to review together some of the desired outcomes , to align with the paper (instructcion given for the edited ending)
+
