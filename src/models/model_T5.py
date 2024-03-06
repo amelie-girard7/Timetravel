@@ -8,9 +8,6 @@ from sentence_transformers import SentenceTransformer, util as sentence_transfor
 from transformers import BartModel, BartTokenizer
 from torch.nn.functional import cosine_similarity
 
-
-
-
 import logging
 
 from src.utils.config import CONFIG  # Import the CONFIG
@@ -31,37 +28,33 @@ class FlanT5FineTuner(pl.LightningModule):
             model_name (str): The name of the T5 model to be used.
         """
         super().__init__()
+        
+        # T5 model and tokenizer
         self.model = T5ForConditionalGeneration.from_pretrained(model_name)
         self.tokenizer = T5Tokenizer.from_pretrained(model_name)
         
-        # Initialise sacre bleu
-        self.sacre_bleu = BLEU()      
-        # Initialize Rouge
+        # BART model and tokenizer for similarity metrics
+        self.bart_model = BartModel.from_pretrained('facebook/bart-base')
+        self.bart_tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
+
+        # Metrics initialization: BLEU, ROUGE, BASE
+        self.sacre_bleu = BLEU()
         self.rouge = Rouge()
-        # Initialise BERT
         self.sentence_transformer = SentenceTransformer('all-MiniLM-L6-v2')
         
-        # Initialise BART for similarity metric
-        self.bart_model = BartModel.from_pretrained('facebook/bart-large')
-        self.bart_tokenizer = BartTokenizer.from_pretrained('facebook/bart-large')
+        # Ensure all models are moved to the appropriate device
+        self.model = self.model.to(self.device)
+        self.bart_model = self.bart_model.to(self.device)
+        self.sentence_transformer = self.sentence_transformer.to(self.device)
         
-        # Initialize a list to store outputs for each validation step
+        # Store outputs for each validation step
         self.current_val_step_outputs = []
     
     
     
     def forward(self, input_ids, attention_mask, labels):
         """
-        Performs the forward pass of the model.b4         
-        Args:premise (Tensor): Tokenized tensor for the story premises.
-            initial (Tensor): Tokenized tensor for the initial states of the stories.
-            original_ending (Tensor): Tokenized tensor for the original endings of the stories.
-            counterfactual (Tensor): Tokenized tensor for the counterfactual (alternative scenarios) of the stories.
-            labels (Tensor, optional): Tokenized tensor for the edited endings, serving as labels for training. Default is None.
-            attention_mask (Tensor, optional): Tensor indicating which tokens should be attended to, and which should not.
-        
-        Returns:
-            The output from the T5 model, which includes loss when labels are provided, and logits otherwise.
+        Performs the forward pass of the model       
         """
         print("--forward pass--")
         
@@ -70,8 +63,6 @@ class FlanT5FineTuner(pl.LightningModule):
         
         # Pass the concatenated input_ids, attention_mask, and labels (if provided) to the model.
         # The T5 model expects input_ids and attention_mask for processing.
-        # If labels are provided (during training), the model will also return the loss
-        # which can be used to update the model's weights.
         output = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
         
         # If labels were provided, the model's output will include loss for training.
@@ -88,20 +79,15 @@ class FlanT5FineTuner(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         """  
         Defines the training logic for a single batch, where a forward pass is performed and the loss is calculated.
-
-        Args:
-            batch (dict): The batch of data provided by the DataLoader.
-            batch_idx (int): The index of the current batch.
-
-        Returns:
-            torch.Tensor: The loss value for the batch.
         """
-        print("--training_step --")    
-        outputs = self.forward(
-            input_ids=batch['input_ids'],
-            attention_mask=batch['attention_mask'],
-            labels=batch['labels'],
-        )
+        print("--training_step --")
+        
+        input_ids = batch['input_ids'].to(self.device)
+        attention_mask = batch['attention_mask'].to(self.device)
+        labels = batch['labels'].to(self.device)  # Only if labels are present
+         
+        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+        
         loss = outputs.loss
         self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True)
         return loss
@@ -116,22 +102,21 @@ class FlanT5FineTuner(pl.LightningModule):
             batch (dict): The batch of data provided by the DataLoader.
             batch_idx (int): The index of the current batch.
         """
-        print("-- validation_step --")   
+        print("-- validation_step --")
+        
+        input_ids = batch['input_ids'].to(self.device)
+        attention_mask = batch['attention_mask'].to(self.device)
+        labels = batch['labels'].to(self.device)  # Only if labels are present 
+        
         # Forward pass to compute loss and model outputs
-        outputs = self.forward(
-            input_ids=batch['input_ids'],
-            attention_mask=batch['attention_mask'],
-            labels=batch['labels'],
-        )
+        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
         val_loss = outputs.loss
-        self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True)
         print(f"Validation loss: {val_loss.item()}")
 
         # Generate text predictions from the model using the individual components
-        generated_texts = self.generate_text(
-            input_ids=batch['input_ids'],
-            attention_mask=batch['attention_mask']
-        )
+        generated_texts = self.generate_text(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'])
+        edited_endings = batch['edited_ending']
         
         # Decode the labels (ground truth edited ending) from the batch for comparison with the model's generated text.
         edited_endings = batch['edited_ending']
@@ -183,17 +168,16 @@ class FlanT5FineTuner(pl.LightningModule):
         print("Aggregated texts for BLEU and ROUGE  and BERT similarity score calculation.")
 
         # Calculate and log BLEU similarity scores for various comparisons
-        self.calculate_and_log_bleu_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        # self.calculate_and_log_bleu_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
 
         # Calculate and log ROUGE similarity scores for various comparisons
-        self.calculate_and_log_rouge_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        # self.calculate_and_log_rouge_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
         
         # Calculate and log BERT similarity scores for various comparisons 
-        self.calculate_and_log_bert_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        # self.calculate_and_log_bert_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
         
         # Calculate and log BART similarity scores
         self.calculate_and_log_bart_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
-
 
 
         # Clear the list of outputs for the next epoch
@@ -327,13 +311,13 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         print("Calculating BART similarity scores...")
         
-        # Assuming you have a method to generate embeddings with BART
-        # This is a simplified placeholder showing the concept
+        # Define the BART embeddings calculation method
         def get_bart_embeddings(texts):
             encoded_input = self.bart_tokenizer(texts, return_tensors='pt', padding=True, truncation=True, max_length=512)
+            encoded_input = {k: v.to(self.device) for k, v in encoded_input.items()}
             with torch.no_grad():
                 model_output = self.bart_model(**encoded_input)
-            embeddings = model_output.last_hidden_state.mean(dim=1)  # Mean pooling
+            embeddings = model_output.last_hidden_state.mean(dim=1)
             return embeddings
 
         # Define comparisons similar to BERT
@@ -369,28 +353,18 @@ class FlanT5FineTuner(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         """
         Called during the testing loop to perform a forward pass with a batch from the test set, calculate the loss, and optionally generate text.
-
-        Args:
-            batch (dict): The batch of data provided by the DataLoader.
-            batch_idx (int): The index of the current batch.
-
-        Returns:
-            dict: Output dictionary containing generated texts and metrics.
         """
-    
+        print("-- test step --")
         return self.validation_step(batch, batch_idx)
     
     def on_test_epoch_end(self):
+        print("-- test epoch --")
         return self.on_validation_epoch_end()
 
 
     def configure_optimizers(self):
         """
         Configure the optimizer for the model.
-        The optimizer is responsible for updating the model's weights to minimize the loss during training.
-            
-        Returns:
-            The optimizer to be used for training the model.
         """
         print("-- configure_optimizers --") 
         
@@ -399,14 +373,18 @@ class FlanT5FineTuner(pl.LightningModule):
         optimizer = torch.optim.AdamW(self.parameters(), lr=0.001)
         return optimizer
 
-    def generate_text(self, input_ids, attention_mask):
+    def generate_text(self, input_ids, attention_mask, max_length=150):
         """
         Generates text sequences from the provided input components using the model.
         """
         print("-- generate_text --") 
 
-        # Generate a tensor of token IDs based on the input_ids and attention_mask
-        generated_ids = self.model.generate(input_ids=input_ids, attention_mask=attention_mask)
+        # Generate a tensor of token IDs based on the input_ids, attention_mask, and max_length
+        generated_ids = self.model.generate(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            max_length=max_length  # Specify the maximum length of the sequence
+        )
         
         # Decode the generated token IDs back into human-readable text
         generated_texts = [self.tokenizer.decode(generated_id, skip_special_tokens=True, clean_up_tokenization_spaces=True) for generated_id in generated_ids]

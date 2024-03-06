@@ -328,4 +328,28 @@ Understood, let's enhance the interpretations to focus more on the implications 
 | BLEU        | Prediction vs. Initial             | 16.617429733276367     | 0-100  | Low             | Indicates the model's creative departure from the initial setup, but suggests further room for diversification.                     |
 | BLEU        | Prediction vs. Original            | 95.26201629638672      | 0-100  | Low             | The high precision score reveals the model's tendency to replicate original narratives closely, highlighting a need for more novelty.|
 
+Understood, let's enhance the interpretations to focus more on the implications of the scores within their context, without altering the scores and avoiding repetition of the comparison details already provided in the table.
+
+### Enhanced Interpretations
+
+| Metric Type | Comparison                         | Score                  | Range  | Desired Outcome | Interpretation                                                                                                                      |
+|-------------|------------------------------------|------------------------|--------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| ROUGE-1     | Edited Ending vs. Original         | 0.7531278133392334     | 0-1    | Low             | A high score suggests significant content overlap, indicating less narrative diversity than desired.                                 |
+| ROUGE-1     | Edited Ending vs. Counterfactual   | 0.17747779190540314    | 0-1    | High            | A low score here points to minimal direct word reuse, aligning with the goal of integrating new counterfactual elements effectively. |
+| ROUGE-1     | Edited Ending vs. Initial          | 0.15380537509918213    | 0-1    | Low             | This low score is favorable, reflecting substantial narrative alteration from the story's beginning.                                |
+| ROUGE-1     | Prediction vs. Original            | 0.7677057385444641     | 0-1    | Low             | The closeness to the original's wording suggests a need for increased novelty in model outputs.                                      |
+| ROUGE-1     | Prediction vs. Edited              | 0.5818418860435486     | 0-1    | High            | Indicates a moderate alignment with human edits, suggesting room for improvement in mimicking desired changes.                       |
+| ROUGE-1     | Prediction vs. Counterfactual      | 0.16079357266426086    | 0-1    | High            | Reflects the model's challenge in fully capturing counterfactual nuances, given the score's proximity to a low overlap.              |
+| ROUGE-1     | Prediction vs. Initial             | 0.1546783745288849     | 0-1    | Low             | Demonstrates the model's effectiveness in diverging from the initial scenario, as evidenced by low overlap.                         |
+| ROUGE-2     | Edited Ending vs. Original         | 0.6301290988922119     | 0-1    | Low             | A high bigram similarity score here signals potential over-reliance on the original narrative structure.                             |
+| ROUGE-2     | Edited Ending vs. Counterfactual   | 0.024872800335288048   | 0-1    | High            | Extremely low bigram overlap underscores the model's capacity to innovate beyond straightforward narrative extensions.             |
+| ROUGE-2     | Edited Ending vs. Initial          | 0.01875416561961174    | 0-1    | Low             | The negligible bigram similarity highlights the model's success in significantly transforming the story from its start.             |
+| BLEU        | Edited Ending vs. Counterfactual   | 0.18647107481956482    | 0-100  | High            | The score indicates a nuanced but limited precision in adapting to the counterfactual, suggesting areas for improvement.            |
+| BLEU        | Edited Ending vs. Initial          | 0.1779923439025879     | 0-100  | Low             | Reflects the model's ability to evolve the narrative from the initial scenario, though the proximity hints at conservative changes. |
+| BLEU        | Edited Ending vs. Original         | 0.06398702412843704    | 0-100  | Low             | Demonstrates significant deviation from the original, with the low precision score indicating substantial narrative innovation.     |
+| BLEU        | Prediction vs. Counterfactual      | 16.467029571533203     | 0-100  | High            | The relatively low score for a BLEU metric suggests the model's limited effectiveness in counterfactual adaptation.                 |
+| BLEU        | Prediction vs. Edited              | 81.49915313720703      | 0-100  | High            | High precision with edited endings shows the model's proficiency in capturing the intended narrative adjustments.                   |
+| BLEU        | Prediction vs. Initial             | 16.617429733276367     | 0-100  | Low             | Indicates the model's creative departure from the initial setup, but suggests further room for diversification.                     |
+| BLEU        | Prediction vs. Original            | 95.26201629638672      | 0-100  | Low             | The high precision score reveals the model's tendency to replicate original narratives closely, highlighting a need for more novelty.|
+
 These interpretations are crafted to provide insights into the model's performance in adapting and transforming narratives based on the given scores, emphasizing areas of strength and potential improvement without repeating the details of the comparisons.
