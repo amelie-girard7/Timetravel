@@ -27,9 +27,6 @@ class FlanT5FineTuner(pl.LightningModule):
     def __init__(self, model_name):
         """
         Initializes the model components, tokenizer, and metrics scorer.
-        
-        Args:
-            model_name (str): The name of the T5 model to be used.
         """
         super().__init__()
         self.model = T5ForConditionalGeneration.from_pretrained(model_name)
@@ -41,16 +38,16 @@ class FlanT5FineTuner(pl.LightningModule):
         self.bert_scorer = BERTScorer(model_type='roberta-base-mnli', device='cuda:0', num_layers=None, batch_size=4)
     
         
-        # Initialize BARTScorer : TODO (Replace with the actual path)
+        # Initialize BARTScorer for similarity metric evaluation
         self.bart_scorer = BARTScorer(device='cuda:0', checkpoint='facebook/bart-large-cnn')
-        self.bart_scorer.load(path='path_to_trained_bartscore_model')
+        # Assuming that self.bart_scorer automatically sets the model to eval mode.
+
 
     
     def forward(self, input_ids, attention_mask, labels):
         """
-        Performs the forward pass of the model              
-        Returns:
-            The output from the T5 model, which includes loss when labels are provided, and logits otherwise.
+        Performs the forward pass of the model. It Returns the output from the T5 model,
+        which includes loss when labels are provided, and logits otherwise.
         """
         print("--forward pass--")
         
@@ -91,7 +88,7 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         print("-- validation_step --")
         
-        # Ensure model is in evaluation mode
+        # Ensure model T5 is in evaluation mode
         # This disables dropout or batchnorm layers and is important for
         # model evaluation to ensure consistent results
         self.model.eval()
