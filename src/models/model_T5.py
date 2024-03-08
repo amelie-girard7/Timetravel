@@ -187,6 +187,7 @@ class FlanT5FineTuner(pl.LightningModule):
 
 
         # Clear the list of outputs for the next epoch
+        # Clear the list of outputs for the next epoch
         self.current_val_step_outputs = []
         print("Validation epoch ended. Metrics logged.")
         
@@ -375,3 +376,4 @@ class FlanT5FineTuner(pl.LightningModule):
         ]
 
         return generated_texts
+
