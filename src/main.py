@@ -1,6 +1,7 @@
 # src/main.py
 import os
 import sys
+import tokenizers
 import torch
 import logging
 from pytorch_lightning import Trainer
@@ -8,49 +9,44 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pathlib import Path
 
+
 # Append src to the system path for imports.
 # This allows the script to access the 'src' directory as if it were a package.
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # Importing custom modules.
+from transformers import T5Tokenizer
 from src.models.model_T5 import FlanT5FineTuner
 from src.data_loader import create_dataloaders
-from src.utils.utils import preprocess_data, collate_fn
 from src.utils.config import CONFIG
 
 # Setup logging.
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Instantiate the tokenizer
+tokenizer = T5Tokenizer.from_pretrained('google/flan-t5-base')
+
+
 def setup_model():
     """
     Initializes and returns the Flan T5 model configured with the specified model name.
-    
-    Returns:
-        FlanT5FineTuner: The initialized Flan T5 model.
     """
     model = FlanT5FineTuner(CONFIG["model_name"])
     return model
 
-def setup_dataloaders(model):
+def setup_dataloaders(model, tokenizer):
     """
     Sets up PyTorch dataloaders for the training, validation, and test datasets.
-    
-    Parameters:
-        model (FlanT5FineTuner): The model for which the dataloaders are being set up.
-    
-    Returns:
-        dict: A dictionary containing the training, validation, and test dataloaders.
     """
-    data_path = CONFIG["data_dir"] / 'raw'
-    file_names = ['train_supervised_small1.json', 'dev_data1.json', 'test_data1.json']
+    data_path = CONFIG["data_dir"] / 'transformed'
+    file_names = ['train_supervised_small_sample.json', 'dev_data_sample.json', 'test_data_sample.json']
 
     dataloaders = create_dataloaders(
         data_path,
         file_names,
         CONFIG["batch_size"],
         model.tokenizer,  # Pass tokenizer directly to create_dataloaders
-        preprocess_data,
         CONFIG["num_workers"]
     )
     # Code to check the first batch from each dataloader
@@ -64,12 +60,6 @@ def setup_dataloaders(model):
 def setup_trainer(model_save_path):
     """
     Configures the PyTorch Lightning trainer with checkpointing and TensorBoard logging.
-    
-    Parameters:
-        model_save_path (Path): Path where the model checkpoints will be saved.
-    
-    Returns:
-        Trainer: The configured PyTorch Lightning trainer.
     """
     checkpoint_callback = ModelCheckpoint(
         dirpath=model_save_path,
@@ -108,19 +98,15 @@ def main():
     """
     try:
         model = setup_model()
-        dataloaders = setup_dataloaders(model)
+        dataloaders = setup_dataloaders(model, tokenizer)
         model_save_path = CONFIG["models_dir"]
         model_save_path.mkdir(exist_ok=True)
 
         trainer = setup_trainer(model_save_path)
 
-        train_dataloader = dataloaders['train_supervised_small1.json']
-        valid_dataloader = dataloaders['dev_data1.json']
-        test_dataloader = dataloaders['test_data1.json']
-
-        # Check what keys are present in your batch
-        batch = next(iter(train_dataloader))
-        print(batch.keys())
+        train_dataloader = dataloaders['train_supervised_small_sample.json']
+        valid_dataloader = dataloaders['dev_data_sample.json']
+        test_dataloader = dataloaders['test_data_sample.json']
 
         # Start the training process.
         trainer.fit(model, train_dataloader, valid_dataloader)
@@ -133,4 +119,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

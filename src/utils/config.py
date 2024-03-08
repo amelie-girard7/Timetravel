@@ -5,6 +5,7 @@ from pathlib import Path
 
 # Allow the root directory to be set via an environment variable for flexibility
 ROOT_DIR = Path(os.getenv('TIMETRAVEL_ROOT', Path(__file__).resolve().parent.parent.parent))
+BARTSCORE_DIR = ROOT_DIR / "src" / "BARTScore"
 
 # Configuration parameters
 CONFIG = {
@@ -13,6 +14,7 @@ CONFIG = {
     "data_dir": ROOT_DIR / "data",
     "models_dir": ROOT_DIR / "models",
     "logs_dir": ROOT_DIR / "logs",
+    "bart_score_dir": BARTSCORE_DIR,  # Add the BARTScore directory
     
     # Model and training configurations
     "model_name": os.getenv('MODEL_NAME', "google/flan-t5-base"),  # Default to "google/flan-t5-base" if not set
