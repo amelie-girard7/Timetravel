@@ -1,7 +1,5 @@
 #/src/data_loader.py 
 
-#/src/data_loader.py 
-
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
@@ -42,7 +40,6 @@ class CustomJSONDataset(Dataset):
         
         item = self.processed_data.iloc[idx]
         # Debugging: Only print for the first few indices
-        if idx < 3:  #
         if idx < 3:  #
             print(f"Item at index {idx}: {item.to_dict()}")
             print(f"Keys at index {idx}: {item.keys().tolist()}")
