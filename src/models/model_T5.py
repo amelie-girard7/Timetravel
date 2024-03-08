@@ -13,7 +13,7 @@ bart_score_path = str(CONFIG["bart_score_dir"])
 if bart_score_path not in sys.path:
     sys.path.append(bart_score_path)
     
-from src.bart_score import BARTScorer
+from src.BARTScore_metric.bart_score import BARTScorer
 
 import logging
 logger = logging.getLogger(__name__)
@@ -35,10 +35,11 @@ class FlanT5FineTuner(pl.LightningModule):
         self.model = T5ForConditionalGeneration.from_pretrained(model_name)
         self.tokenizer = T5Tokenizer.from_pretrained(model_name)
         
-        # Initialise sacre bleu abd Rouge Bert
+        # Initialise sacre bleu and Rouge Bert
         self.sacre_bleu = BLEU()      
         self.rouge = Rouge()
         self.bert_scorer = BERTScorer(model_type='roberta-base-mnli', device='cuda:0', num_layers=None, batch_size=4)
+    
         
         # Initialize BARTScorer : TODO (Replace with the actual path)
         self.bart_scorer = BARTScorer(device='cuda:0', checkpoint='facebook/bart-large-cnn')
@@ -56,14 +57,10 @@ class FlanT5FineTuner(pl.LightningModule):
         if labels is not None:
             print(f"Labels shape: {labels.shape}")
         
-        # Pass the concatenated input_ids, attention_mask, and labels (if provided) to the model.
-        # The T5 model expects input_ids and attention_mask for processing.
-        # If labels are provided (during training), the model will also return the loss
-        # which can be used to update the model's weights.
+        # Pass the concatenated input_ids, attention_mask, and labels  to the model.
         output = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
         
         # If labels were provided, the model's output will include loss for training.
-        # During inference (no labels), the model generates logits from which we can derive predictions.
         if labels is not None:
             print("Loss from model output:", output.loss.item())
         else:
@@ -75,13 +72,6 @@ class FlanT5FineTuner(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         """  
         Defines the training logic for a single batch, where a forward pass is performed and the loss is calculated.
-
-        Args:
-            batch (dict): The batch of data provided by the DataLoader.
-            batch_idx (int): The index of the current batch.
-
-        Returns:
-            torch.Tensor: The loss value for the batch.
         """
         print("--training_step --")    
         outputs = self.forward(
@@ -185,8 +175,6 @@ class FlanT5FineTuner(pl.LightningModule):
         # Calculate and log BART similarity scores
         self.calculate_and_log_bart_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
 
-
-        # Clear the list of outputs for the next epoch
         # Clear the list of outputs for the next epoch
         self.current_val_step_outputs = []
         print("Validation epoch ended. Metrics logged.")
