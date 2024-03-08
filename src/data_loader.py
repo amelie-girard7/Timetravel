@@ -45,31 +45,44 @@ class CustomJSONDataset(Dataset):
             print(f"Keys at index {idx}: {item.keys().tolist()}")
         return item
 
+
 def create_dataloaders(data_path, file_names, batch_size, tokenizer, num_workers=0):
     """
-    Creates a dictionary of DataLoader objects for each specified JSON file.
+    This function is responsible for creating DataLoader instances for datasets.
     """
     dataloaders = {}
     for file_name in file_names:
-        # Construct the full path to the JSON file
+        # Construct the full path to the dataset file
         file_path = Path(data_path) / file_name
-        # Raise an error if the file doesn't exist
         if not file_path.exists():
             raise FileNotFoundError(f"{file_path} does not exist.")
 
-        # Create a custom dataset using the JSON file and the preprocess_data function directly
-        dataset = CustomJSONDataset(file_path, tokenizer)  # Pass tokenizer here
+        # Initialize a custom dataset. This step involves reading the data file and preprocessing it
+        # using the tokenizer to make it suitable for model input.
+        dataset = CustomJSONDataset(file_path, tokenizer)
 
-        # Create a DataLoader for batching and loading the dataset
+        # Create a DataLoader for the dataset. DataLoader abstracts the complexity of fetching,
+        # transforming, and batching the data, making it ready for training or validation.
+        # `collate_fn` is used to specify how a list of samples is combined into a batch.
+        # This is especially important because we are dealing with variable-length inputs.
         dataloader = DataLoader(
             dataset, 
-            batch_size=batch_size, 
-            collate_fn=collate_fn,  
-            num_workers=num_workers
+            batch_size=batch_size,
+            collate_fn=collate_fn,  # Custom function to combine data samples into a batch
+            num_workers=num_workers,  # Number of subprocesses for data loading. 0 means data will be loaded in the main process.
+            
+            # `persistent_workers=True` is recommended when using multiple workers (num_workers > 0).
+            # It keeps the worker processes alive across data fetches rather than restarting them for each fetch.
+            # This can lead to significant performance improvements, especially for large datasets or complex
+            # preprocessing pipelines, as it reduces the overhead from constantly creating and destroying worker processes.
+            # However, it's only effective (and only makes sense to enable) when `num_workers` is greater than 0.
+            # When there are no worker processes (num_workers=0), this setting has no effect.
+            persistent_workers=True if num_workers > 0 else False,
         )
 
-        # Store the DataLoader in the dictionary using the file name as the key
+        # Store the DataLoader in a dictionary using the file name as the key.
+        # This allows for easy access to different dataloaders for training, validation, and testing.
         dataloaders[file_name] = dataloader
         print(f"Dataloader created for {file_name}")
-    
+
     return dataloaders

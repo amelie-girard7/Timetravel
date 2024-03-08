@@ -1,17 +1,21 @@
 # src/models/model_T5.py
+import sys
 import torch
+from src.utils.config import CONFIG
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 import pytorch_lightning as pl
 from sacrebleu.metrics import BLEU
 from rouge import Rouge
-from sentence_transformers import SentenceTransformer, util as sentence_transformers_util
-from transformers import BartModel, BartTokenizer
-from torch.nn.functional import cosine_similarity
+from bert_score import BERTScorer
+
+# Add BARTScore directory to Python path
+bart_score_path = str(CONFIG["bart_score_dir"])
+if bart_score_path not in sys.path:
+    sys.path.append(bart_score_path)
+    
+from src.bart_score import BARTScorer
 
 import logging
-
-from src.utils.config import CONFIG  # Import the CONFIG
-
 logger = logging.getLogger(__name__)
 
 class FlanT5FineTuner(pl.LightningModule):
@@ -28,33 +32,24 @@ class FlanT5FineTuner(pl.LightningModule):
             model_name (str): The name of the T5 model to be used.
         """
         super().__init__()
-        
-        # T5 model and tokenizer
         self.model = T5ForConditionalGeneration.from_pretrained(model_name)
         self.tokenizer = T5Tokenizer.from_pretrained(model_name)
         
-        # BART model and tokenizer for similarity metrics
-        self.bart_model = BartModel.from_pretrained('facebook/bart-base')
-        self.bart_tokenizer = BartTokenizer.from_pretrained('facebook/bart-base')
-
-        # Metrics initialization: BLEU, ROUGE, BASE
-        self.sacre_bleu = BLEU()
+        # Initialise sacre bleu abd Rouge Bert
+        self.sacre_bleu = BLEU()      
         self.rouge = Rouge()
-        self.sentence_transformer = SentenceTransformer('all-MiniLM-L6-v2')
+        self.bert_scorer = BERTScorer(model_type='roberta-base-mnli', device='cuda:0', num_layers=None, batch_size=4)
         
-        # Ensure all models are moved to the appropriate device
-        self.model = self.model.to(self.device)
-        self.bart_model = self.bart_model.to(self.device)
-        self.sentence_transformer = self.sentence_transformer.to(self.device)
-        
-        # Store outputs for each validation step
-        self.current_val_step_outputs = []
-    
-    
+        # Initialize BARTScorer : TODO (Replace with the actual path)
+        self.bart_scorer = BARTScorer(device='cuda:0', checkpoint='facebook/bart-large-cnn')
+        self.bart_scorer.load(path='path_to_trained_bartscore_model')
+
     
     def forward(self, input_ids, attention_mask, labels):
         """
-        Performs the forward pass of the model       
+        Performs the forward pass of the model              
+        Returns:
+            The output from the T5 model, which includes loss when labels are provided, and logits otherwise.
         """
         print("--forward pass--")
         
@@ -63,6 +58,8 @@ class FlanT5FineTuner(pl.LightningModule):
         
         # Pass the concatenated input_ids, attention_mask, and labels (if provided) to the model.
         # The T5 model expects input_ids and attention_mask for processing.
+        # If labels are provided (during training), the model will also return the loss
+        # which can be used to update the model's weights.
         output = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
         
         # If labels were provided, the model's output will include loss for training.
@@ -75,19 +72,23 @@ class FlanT5FineTuner(pl.LightningModule):
         return output
 
 
-
     def training_step(self, batch, batch_idx):
         """  
         Defines the training logic for a single batch, where a forward pass is performed and the loss is calculated.
+
+        Args:
+            batch (dict): The batch of data provided by the DataLoader.
+            batch_idx (int): The index of the current batch.
+
+        Returns:
+            torch.Tensor: The loss value for the batch.
         """
-        print("--training_step --")
-        
-        input_ids = batch['input_ids'].to(self.device)
-        attention_mask = batch['attention_mask'].to(self.device)
-        labels = batch['labels'].to(self.device)  # Only if labels are present
-         
-        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-        
+        print("--training_step --")    
+        outputs = self.forward(
+            input_ids=batch['input_ids'],
+            attention_mask=batch['attention_mask'],
+            labels=batch['labels'],
+        )
         loss = outputs.loss
         self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True)
         return loss
@@ -97,26 +98,30 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         Performs a validation step for a single batch.
         It calculates the loss, generates predictions, and prepares data for metric calculation.
-        
-        Args:
-            batch (dict): The batch of data provided by the DataLoader.
-            batch_idx (int): The index of the current batch.
         """
         print("-- validation_step --")
         
-        input_ids = batch['input_ids'].to(self.device)
-        attention_mask = batch['attention_mask'].to(self.device)
-        labels = batch['labels'].to(self.device)  # Only if labels are present 
-        
+        # Ensure model is in evaluation mode
+        # This disables dropout or batchnorm layers and is important for
+        # model evaluation to ensure consistent results
+        self.model.eval()
+           
         # Forward pass to compute loss and model outputs
-        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+        outputs = self.forward(
+            input_ids=batch['input_ids'],
+            attention_mask=batch['attention_mask'],
+            labels=batch['labels'],
+        )
         val_loss = outputs.loss
-        self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         print(f"Validation loss: {val_loss.item()}")
 
         # Generate text predictions from the model using the individual components
-        generated_texts = self.generate_text(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'])
-        edited_endings = batch['edited_ending']
+        generated_texts = self.generate_text(
+            input_ids=batch['input_ids'],
+            attention_mask=batch['attention_mask'],
+            max_length=250 # Specify the desired maximum length of generated text
+        )
         
         # Decode the labels (ground truth edited ending) from the batch for comparison with the model's generated text.
         edited_endings = batch['edited_ending']
@@ -149,6 +154,7 @@ class FlanT5FineTuner(pl.LightningModule):
         Handles operations to perform at the end of each validation epoch.
         """
         print("-- on_validation_epoch_end --")
+        self.model.train()
         # Prepare lists to store generated texts and their corresponding references
         all_generated_texts = []
         all_edited_endings = []
@@ -168,13 +174,13 @@ class FlanT5FineTuner(pl.LightningModule):
         print("Aggregated texts for BLEU and ROUGE  and BERT similarity score calculation.")
 
         # Calculate and log BLEU similarity scores for various comparisons
-        # self.calculate_and_log_bleu_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        self.calculate_and_log_bleu_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
 
         # Calculate and log ROUGE similarity scores for various comparisons
-        # self.calculate_and_log_rouge_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        self.calculate_and_log_rouge_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
         
         # Calculate and log BERT similarity scores for various comparisons 
-        # self.calculate_and_log_bert_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        self.calculate_and_log_bert_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
         
         # Calculate and log BART similarity scores
         self.calculate_and_log_bart_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
@@ -196,22 +202,15 @@ class FlanT5FineTuner(pl.LightningModule):
         original_endings_refs = [[orig] for orig in all_original_endings]
 
         # Calculate and log BLEU scores for generated_text vs. story components (edited_ending, cunterfactual,initial and original_endings )
-        comparisons = [
+        all_comparisons = [
             ('bleu_prediction_edited', all_generated_texts, edited_endings_refs),
             ('bleu_prediction_cf', all_generated_texts, counterfactuals_refs),
             ('bleu_prediction_initial', all_generated_texts, initials_refs),
             ('bleu_prediction_original', all_generated_texts, original_endings_refs),
-        ]
-        
-        # Calculate and log BLEU scores for edited_ending vs. other story components
-        edited_comparisons = [
             ('bleu_edited_ending_cf', all_edited_endings, all_counterfactuals),
             ('bleu_edited_ending_initial', all_edited_endings, all_initials),
             ('bleu_edited_ending_original', all_edited_endings, all_original_endings),
         ]
-        
-        # Combine all comparisons into a single list for processing
-        all_comparisons = comparisons + edited_comparisons
 
         # Calculate and log BLEU scores for each comparison
         for label, texts, references in all_comparisons:
@@ -235,22 +234,15 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         print("Calculating ROUGE scores...")
         # Original comparisons for generated texts
-        rouge_score_comparisons = [
+        all_comparisons = [
             ('rouge_prediction_edited', all_generated_texts, all_edited_endings),
             ('rouge_prediction_cf', all_generated_texts, all_counterfactuals),
             ('rouge_prediction_initial', all_generated_texts, all_initials),
             ('rouge_prediction_original', all_generated_texts, all_original_endings),
-        ]
-
-        # Additional comparisons for edited endings vs. other story components
-        edited_comparisons = [
             ('rouge_edited_ending_cf', all_edited_endings, all_counterfactuals),
             ('rouge_edited_ending_initial', all_edited_endings, all_initials),
             ('rouge_edited_ending_original', all_edited_endings, all_original_endings),
         ]
-
-        # Combine all comparisons into a single list for processing
-        all_comparisons = rouge_score_comparisons + edited_comparisons
 
         for label, hypotheses, references in all_comparisons:
             rouge_scores = self.rouge.get_scores(hypotheses, references, avg=True)
@@ -265,6 +257,7 @@ class FlanT5FineTuner(pl.LightningModule):
                     print(f"{label}_{score_type} F1: {rouge_scores[score_type]['f']} Precision: {rouge_scores[score_type]['p']} Recall: {rouge_scores[score_type]['r']}")
 
     
+    
     def calculate_and_log_bert_similarity(self, all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings):
         """
         Calculates and logs BERT similarity scores for generated texts against various components,
@@ -273,80 +266,67 @@ class FlanT5FineTuner(pl.LightningModule):
         print("Calculating BERT similarity scores...")
         
         # Define the original and edited comparisons
-        original_comparisons = [
+        all_comparisons = [
             ('bert_prediction_edited', all_generated_texts, all_edited_endings),
             ('bert_prediction_cf', all_generated_texts, all_counterfactuals),
             ('bert_prediction_initial', all_generated_texts, all_initials),
             ('bert_prediction_original', all_generated_texts, all_original_endings),
-        ]
-        edited_comparisons = [
             ('bert_edited_ending_cf', all_edited_endings, all_counterfactuals),
             ('bert_edited_ending_initial', all_edited_endings, all_initials),
             ('bert_edited_ending_original', all_edited_endings, all_original_endings),
         ]
-
-        # Combine all comparisons into a single list for processing
-        all_comparisons = original_comparisons + edited_comparisons
-
         # Calculate and log BERT similarity scores for each comparison
         for label, texts_a, texts_b in all_comparisons:
-            embeddings_a = self.sentence_transformer.encode(texts_a, convert_to_tensor=True)
-            embeddings_b = self.sentence_transformer.encode(texts_b, convert_to_tensor=True)
+            # Calculate precision, recall, and F1 scores using BERTScore
+            P, R, F1 = self.bert_scorer.score(texts_a, texts_b)
             
-            # Compute cosine similarities for each pair of texts
-            cosine_scores = sentence_transformers_util.cos_sim(embeddings_a, embeddings_b)
+            # Calculate average scores for the current comparison to summarize over all instances
+            avg_precision = P.mean().item()
+            avg_recall = R.mean().item()
+            avg_f1 = F1.mean().item()
+
+            # Log the calculated metrics for monitoring and analysis
+            self.log(f'{label}_precision', avg_precision, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            self.log(f'{label}_recall', avg_recall, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            self.log(f'{label}_f1', avg_f1, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            print(f"{label}: Precision={avg_precision}, Recall={avg_recall}, F1={avg_f1}")
             
-            # For each text pair, find the highest similarity with any reference
-            max_similarities = cosine_scores.max(dim=1).values
-            
-            # Log average of the maximum similarity scores
-            avg_similarity = max_similarities.mean().item()
-            self.log(label, avg_similarity, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            print(f"{label}: {avg_similarity}")
 
     
     def calculate_and_log_bart_similarity(self, all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings):
         """
-        Calculates and logs BART-based similarity scores.
+        Calculates and logs BART-based similarity scores for a variety of text comparisons,
+        using the BARTScorer to evaluate the similarity between different segments of texts.
         """
-        print("Calculating BART similarity scores...")
-        
-        # Define the BART embeddings calculation method
-        def get_bart_embeddings(texts):
-            encoded_input = self.bart_tokenizer(texts, return_tensors='pt', padding=True, truncation=True, max_length=512)
-            encoded_input = {k: v.to(self.device) for k, v in encoded_input.items()}
-            with torch.no_grad():
-                model_output = self.bart_model(**encoded_input)
-            embeddings = model_output.last_hidden_state.mean(dim=1)
-            return embeddings
+        print("-- Calculating BART similarity scores --")
 
-        # Define comparisons similar to BERT
-        comparisons = [
+        # Define all pairs of text segments for which to calculate similarity scores
+        all_comparisons = [
             ('bart_prediction_edited', all_generated_texts, all_edited_endings),
             ('bart_prediction_cf', all_generated_texts, all_counterfactuals),
             ('bart_prediction_initial', all_generated_texts, all_initials),
             ('bart_prediction_original', all_generated_texts, all_original_endings),
-        ]
-        
-        edited_comparisons = [
             ('bart_edited_ending_cf', all_edited_endings, all_counterfactuals),
             ('bart_edited_ending_initial', all_edited_endings, all_initials),
             ('bart_edited_ending_original', all_edited_endings, all_original_endings),
         ]
 
-        # Combine all comparisons into a single list for processing
-        all_comparisons = comparisons + edited_comparisons
+        # Iterate over each pair and calculate BARTScores
+        for label, src_texts, tgt_texts in all_comparisons:
+            # Ensure src_texts is a list of texts and tgt_texts could be a list of lists (for multiple references)
+            if isinstance(tgt_texts[0], list):
+                # Calculate scores with multi-reference support
+                scores = self.bart_scorer.multi_ref_score(src_texts, tgt_texts, agg='mean', batch_size=4)
+            else:
+                # Calculate scores for single reference
+                scores = self.bart_scorer.score(src_texts, tgt_texts, batch_size=4)
+            
+            # Calculate the average score for simplicity; you might want to log or analyze scores further
+            avg_score = sum(scores) / len(scores) if scores else float('nan')
 
-        # Calculate and log similarity scores for each comparison
-        for label, texts_a, texts_b in all_comparisons:
-            embeddings_a = get_bart_embeddings(texts_a)
-            embeddings_b = get_bart_embeddings(texts_b)
-
-            # Calculate cosine similarity and log the average similarity score
-            for i, embedding_a in enumerate(embeddings_a):
-                similarities = [cosine_similarity(embedding_a.unsqueeze(0), embedding_b.unsqueeze(0)).item() for embedding_b in embeddings_b]
-                avg_similarity = sum(similarities) / len(similarities)
-                self.log(f'{label}_{i}', avg_similarity, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            # Log the average BARTScore using whatever logging mechanism (e.g., self.log in PyTorch Lightning)
+            print(f"{label}: {avg_score}")
+            self.log(f'{label}_avg_score', avg_score, on_step=False, on_epoch=True, prog_bar=True)
 
 
             
@@ -354,17 +334,17 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         Called during the testing loop to perform a forward pass with a batch from the test set, calculate the loss, and optionally generate text.
         """
-        print("-- test step --")
+    
         return self.validation_step(batch, batch_idx)
     
     def on_test_epoch_end(self):
-        print("-- test epoch --")
         return self.on_validation_epoch_end()
 
 
     def configure_optimizers(self):
         """
         Configure the optimizer for the model.
+        The optimizer is responsible for updating the model's weights to minimize the loss during training.
         """
         print("-- configure_optimizers --") 
         
@@ -373,20 +353,25 @@ class FlanT5FineTuner(pl.LightningModule):
         optimizer = torch.optim.AdamW(self.parameters(), lr=0.001)
         return optimizer
 
-    def generate_text(self, input_ids, attention_mask, max_length=150):
+    def generate_text(self, input_ids, attention_mask, max_length=250):
         """
-        Generates text sequences from the provided input components using the model.
+        Generates text sequences from the provided input components using the model,
+        with a customizable maximum length for the generated text.
         """
-        print("-- generate_text --") 
+        print("-- generate_text --")
 
-        # Generate a tensor of token IDs based on the input_ids, attention_mask, and max_length
+        # Use the `max_length` argument in the model's generate function to control the maximum length of the generated sequences.
         generated_ids = self.model.generate(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            max_length=max_length  # Specify the maximum length of the sequence
+            max_length=max_length  # This is now an adjustable parameter.
         )
-        
-        # Decode the generated token IDs back into human-readable text
-        generated_texts = [self.tokenizer.decode(generated_id, skip_special_tokens=True, clean_up_tokenization_spaces=True) for generated_id in generated_ids]
-        
+
+        # Decode the generated token IDs back into human-readable text,
+        # skipping special tokens to improve readability.
+        generated_texts = [
+            self.tokenizer.decode(generated_id, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+            for generated_id in generated_ids
+        ]
+
         return generated_texts
