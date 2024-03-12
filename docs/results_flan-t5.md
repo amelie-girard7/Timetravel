@@ -145,50 +145,50 @@ prediction is generated-text
 | bert_prediction_original_recall      | 0.9874710440635681 |
 
 
-| Bleu metric                       | Similarity [0-100] |
-|-----------------------------------|--------------------|
-| bleu_edited_ending_cf             | 0.18647107481956482|
-| bleu_edited_ending_initial        | 0.1779923439025879 |
-| bleu_edited_ending_original       | 0.06398702412843704|
-| bleu_prediction_cf                | 15.545328140258789 |
-| bleu_prediction_edited            | 78.89669799804688  |
-| bleu_prediction_initial           | 11.120792388916016 |
-| bleu_prediction_original          | 93.21022033691406  |
+| Bleu metric                          | Similarity [0-100] |
+|--------------------------------------|--------------------|
+| bleu_edited_ending_cf                | 0.18647107481956482|
+| bleu_edited_ending_initial           | 0.1779923439025879 |
+| bleu_edited_ending_original          | 0.06398702412843704|
+| bleu_prediction_cf                   | 15.545328140258789 |
+| bleu_prediction_edited               | 78.89669799804688  |
+| bleu_prediction_initial              | 11.120792388916016 |
+| bleu_prediction_original             | 93.21022033691406  |
 
 
 
-| Rouge metric                        | Similarity [0-1]    |
-|-------------------------------------|---------------------|
-| rouge_edited_ending_cf_rouge-1_f    | 0.17747779190540314 |
-| rouge_edited_ending_cf_rouge-1_p    | 0.1295394003391266  |
-| rouge_edited_ending_cf_rouge-1_r    | 0.30741605162620544 |
-| rouge_edited_ending_cf_rouge-2_f    | 0.024872800335288048|
-| rouge_edited_ending_cf_rouge-2_p    | 0.017150932922959328|
-| rouge_edited_ending_cf_rouge-2_r    | 0.0506436750292778  |
-| rouge_edited_ending_cf_rouge-l_f    | 0.16370658576488495 |
-| rouge_edited_ending_cf_rouge-l_p    | 0.11930356174707413 |
-| rouge_edited_ending_cf_rouge-l_r    | 0.28467464447021484 |
+| Rouge metric                         | Similarity [0-1]    |
+|--------------------------------------|---------------------|
+| rouge_edited_ending_cf_rouge-1_f     | 0.17747779190540314 |
+| rouge_edited_ending_cf_rouge-1_p     | 0.1295394003391266  |
+| rouge_edited_ending_cf_rouge-1_r     | 0.30741605162620544 |
+| rouge_edited_ending_cf_rouge-2_f     | 0.024872800335288048|
+| rouge_edited_ending_cf_rouge-2_p     | 0.017150932922959328|
+| rouge_edited_ending_cf_rouge-2_r     | 0.0506436750292778  |
+| rouge_edited_ending_cf_rouge-l_f     | 0.16370658576488495 |
+| rouge_edited_ending_cf_rouge-l_p     | 0.11930356174707413 |
+| rouge_edited_ending_cf_rouge-l_r     | 0.28467464447021484 |
 
-|rouge_edited_ending_initial_rouge-1_f| 0.15380537509918213 |
-|rouge_edited_ending_initial_rouge-1_p| 0.10816317051649094 |
-|rouge_edited_ending_initial_rouge-1_r| 0.28547996282577515 |
-|rouge_edited_ending_initial_rouge-2_f| 0.01875416561961174 |
-|rouge_edited_ending_initial_rouge-2_p| 0.012573624029755592|
-|rouge_edited_ending_initial_rouge-2_r| 0.04027299955487251 | 
-|rouge_edited_ending_initial_rouge-l_f| 0.14384855329990387 |
-|rouge_edited_ending_initial_rouge-l_p| 0.10100927948951721 |
-|rouge_edited_ending_initial_rouge-l_r| 0.2681836485862732  |
+|rouge_edited_ending_initial_rouge-1_f | 0.15380537509918213 |
+|rouge_edited_ending_initial_rouge-1_p | 0.10816317051649094 |
+|rouge_edited_ending_initial_rouge-1_r | 0.28547996282577515 |
+|rouge_edited_ending_initial_rouge-2_f | 0.01875416561961174 |
+|rouge_edited_ending_initial_rouge-2_p | 0.012573624029755592|
+|rouge_edited_ending_initial_rouge-2_r | 0.04027299955487251 | 
+|rouge_edited_ending_initial_rouge-l_f | 0.14384855329990387 |
+|rouge_edited_ending_initial_rouge-l_p | 0.10100927948951721 |
+|rouge_edited_ending_initial_rouge-l_r | 0.2681836485862732  |
 
 
-| rouge_edited_ending_original_rouge-1_f| 0.7531278133392334|
-| rouge_edited_ending_original_rouge-1_p| 0.7389482855796814|
-| rouge_edited_ending_original_rouge-1_r| 0.7753328680992126|
-| rouge_edited_ending_original_rouge-2_f| 0.6301290988922119|
-| rouge_edited_ending_original_rouge-2_p| 0.6145238280296326|
-| rouge_edited_ending_original_rouge-2_r| 0.6531437635421753|
-| rouge_edited_ending_original_rouge-l_f| 0.7497166395187378|
-| rouge_edited_ending_original_rouge-l_p| 0.7355568408966064|
-| rouge_edited_ending_original_rouge-l_r| 0.7718437910079956|
+| rouge_edited_ending_original_rouge-1_f| 0.7531278133392334 |
+| rouge_edited_ending_original_rouge-1_p| 0.7389482855796814 |
+| rouge_edited_ending_original_rouge-1_r| 0.7753328680992126 |
+| rouge_edited_ending_original_rouge-2_f| 0.6301290988922119 |
+| rouge_edited_ending_original_rouge-2_p| 0.6145238280296326 |
+| rouge_edited_ending_original_rouge-2_r| 0.6531437635421753 |
+| rouge_edited_ending_original_rouge-l_f| 0.7497166395187378 |
+| rouge_edited_ending_original_rouge-l_p| 0.7355568408966064 |
+| rouge_edited_ending_original_rouge-l_r| 0.7718437910079956 |
 
 | rouge_prediction_cf_rouge-1_f         |0.16842211782932281 |
 | rouge_prediction_cf_rouge-1_p         |0.12465791404247284 |
