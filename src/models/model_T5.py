@@ -35,12 +35,15 @@ class FlanT5FineTuner(pl.LightningModule):
         # Initialise sacre bleu and Rouge Bert
         self.sacre_bleu = BLEU()      
         self.rouge = Rouge()
-        self.bert_scorer = BERTScorer(model_type='roberta-base-mnli', device='cuda:0', num_layers=None, batch_size=4)
+        self.bert_scorer = BERTScorer(model_type='microsoft/deberta-xlarge-mnli', device='cuda:0', num_layers=None, batch_size=4)
     
         
         # Initialize BARTScorer for similarity metric evaluation
         self.bart_scorer = BARTScorer(device='cuda:0', checkpoint='facebook/bart-large-cnn')
         # Assuming that self.bart_scorer automatically sets the model to eval mode.
+
+        # Initialize the list to store validation step outputs
+        self.current_val_step_outputs = []
 
 
     
