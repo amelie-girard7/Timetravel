@@ -1,7 +1,5 @@
 #/src/data_loader.py 
 
-#/src/data_loader.py 
-
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
@@ -43,7 +41,6 @@ class CustomJSONDataset(Dataset):
         item = self.processed_data.iloc[idx]
         # Debugging: Only print for the first few indices
         if idx < 3:  #
-        if idx < 3:  #
             print(f"Item at index {idx}: {item.to_dict()}")
             print(f"Keys at index {idx}: {item.keys().tolist()}")
         return item
@@ -76,11 +73,7 @@ def create_dataloaders(data_path, file_names, batch_size, tokenizer, num_workers
             
             # `persistent_workers=True` is recommended when using multiple workers (num_workers > 0).
             # It keeps the worker processes alive across data fetches rather than restarting them for each fetch.
-            # This can lead to significant performance improvements, especially for large datasets or complex
-            # preprocessing pipelines, as it reduces the overhead from constantly creating and destroying worker processes.
-            # However, it's only effective (and only makes sense to enable) when `num_workers` is greater than 0.
-            # When there are no worker processes (num_workers=0), this setting has no effect.
-            persistent_workers=True if num_workers > 0 else False,
+            #persistent_workers=True if num_workers > 0 else False,
         )
 
         # Store the DataLoader in a dictionary using the file name as the key.

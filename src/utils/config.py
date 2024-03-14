@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Allow the root directory to be set via an environment variable for flexibility
 ROOT_DIR = Path(os.getenv('TIMETRAVEL_ROOT', Path(__file__).resolve().parent.parent.parent))
-BARTSCORE_DIR = ROOT_DIR / "src" / "BARTScore"
+BARTSCORE_DIR = ROOT_DIR / "src" / "BARTScore_metric"
 
 # Configuration parameters
 CONFIG = {

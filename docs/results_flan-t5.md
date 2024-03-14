@@ -68,6 +68,286 @@ We are in the context of supervised learning. The dataset structure is as follow
 990.311   Total estimated model params size (MB)
 
 
+BERT  https://github.com/Tiiiger/bert_score (microsoft/deberta-xlarge-mnli)
+BART  https://github.com/neulab/BARTScore (facebook/bart-large-cnn)
+ROUGE https://github.com/pltrdy/rouge
+BLEU  https://github.com/mjpost/sacrebleu
+
+
+
+## Experiment 4 
+
+These are the metrics agreed upon for Experiment 4
+
+- Standard metric (either BLEU, ROUGE, BERTScore; any version):
+
+(prediction, edited_ending): high is desirable 
+(prediction, counterfactual): high is desirable
+(prediction, initial): low is desirable
+(generated-text, original_ending): low is desirable (probably... these are long strings, and may be rather similar also for effective predictions)
+
+We can compute the difference between the desirable scores and the undesrirable scores as a single, overall metric.
+
+To confirm the validity of the above assumptions, we can measure and report the following quantities on the dataset:
+(edited_ending, counterfactual): high is desirable
+(edited_ending, initial): low is desirable
+(edited_ending, original_ending): low is desirable (probably... these are long strings, and may be rather similar)
+
+We can assume that some of these quantities are an "upper bound" for the corresponding scores of the predictions, but I am not sure if this assumption will hold.
+For instance, one could assume that BLEU(edited_ending, counterfactual) is always > BLEU(prediction, counterfactual), but it may not be true. Logically, they should be similar.
+
+- BARTScore:
+everything said above applies also to BARTScore. We provide the same arguments in the required format, and expect the same trends.
+
+Here 
+edited_ending : labels
+prediction is generated-text
+
+## Experiment 4 - 12/03
+
+
+
+| BART metric                          |Similarity [-Inf-0]
+|--------------------------------------|-------------------|
+|bart_edited_ending_cf_avg_score       |-3.270855665206909 |
+|bart_edited_ending_initial_avg_score  |-3.405696153640747 | 
+|bart_edited_ending_original_avg_score |-1.4418021440505981|
+|bart_prediction_cf_avg_score          |-3.444650411605835 |
+|bart_prediction_cf_avg_score          |-3.444650411605835 |
+|bart_prediction_edited_avg_score      |-1.7036479711532593|
+|bart_prediction_initial_avg_score     |-3.3090765476226807|
+| bart_prediction_original_avg_score   |-0.3739939033985138|
+
+
+
+| BERT metric                          | Similarity [0-1]   |
+|--------------------------------------|--------------------|
+| bert_edited_ending_cf_f1             | 0.5964024662971497 |
+| bert_edited_ending_cf_precision      | 0.5502906441688538 |
+| bert_edited_ending_cf_recall         | 0.653448224067688  |
+| bert_edited_ending_initial_f1        | 0.5916143655776978 |
+| bert_edited_ending_initial_precision | 0.5412111282348633 |
+| bert_edited_ending_initial_recall    | 0.6547386646270752 |
+| bert_edited_ending_original_f1       | 0.848354697227478  |
+| bert_edited_ending_original_precision| 0.8407038450241089 |
+| bert_edited_ending_original_recall   | 0.8570297360420227 |
+| bert_prediction_cf_f1                | 0.5924401879310608 |
+| bert_prediction_cf_precision         | 0.5504221320152283 |
+| bert_prediction_cf_recall            | 0.6437558531761169 |
+| bert_prediction_edited_f1            | 0.8435136675834656 |
+| bert_prediction_edited_precision     | 0.8520939946174622 |
+| bert_prediction_edited_recall        | 0.8359667062759399 |
+| bert_prediction_initial_f1           | 0.6001779437065125 |
+| bert_prediction_initial_precision    | 0.5512555837631226 |
+| bert_prediction_initial_recall       | 0.6608282327651978 |
+| bert_prediction_original_f1          | 0.9875152707099915 |
+| bert_prediction_original_precision   | 0.9875959157943726 |
+| bert_prediction_original_recall      | 0.9874710440635681 |
+
+
+| Bleu metric                          | Similarity [0-100] |
+|--------------------------------------|--------------------|
+| bleu_edited_ending_cf                | 0.18647107481956482|
+| bleu_edited_ending_initial           | 0.1779923439025879 |
+| bleu_edited_ending_original          | 0.06398702412843704|
+| bleu_prediction_cf                   | 15.545328140258789 |
+| bleu_prediction_edited               | 78.89669799804688  |
+| bleu_prediction_initial              | 11.120792388916016 |
+| bleu_prediction_original             | 93.21022033691406  |
+
+
+
+| Rouge metric                         | Similarity [0-1]    |
+|--------------------------------------|---------------------|
+| rouge_edited_ending_cf_rouge-1_f     | 0.17747779190540314 |
+| rouge_edited_ending_cf_rouge-1_p     | 0.1295394003391266  |
+| rouge_edited_ending_cf_rouge-1_r     | 0.30741605162620544 |
+| rouge_edited_ending_cf_rouge-2_f     | 0.024872800335288048|
+| rouge_edited_ending_cf_rouge-2_p     | 0.017150932922959328|
+| rouge_edited_ending_cf_rouge-2_r     | 0.0506436750292778  |
+| rouge_edited_ending_cf_rouge-l_f     | 0.16370658576488495 |
+| rouge_edited_ending_cf_rouge-l_p     | 0.11930356174707413 |
+| rouge_edited_ending_cf_rouge-l_r     | 0.28467464447021484 |
+
+|rouge_edited_ending_initial_rouge-1_f | 0.15380537509918213 |
+|rouge_edited_ending_initial_rouge-1_p | 0.10816317051649094 |
+|rouge_edited_ending_initial_rouge-1_r | 0.28547996282577515 |
+|rouge_edited_ending_initial_rouge-2_f | 0.01875416561961174 |
+|rouge_edited_ending_initial_rouge-2_p | 0.012573624029755592|
+|rouge_edited_ending_initial_rouge-2_r | 0.04027299955487251 | 
+|rouge_edited_ending_initial_rouge-l_f | 0.14384855329990387 |
+|rouge_edited_ending_initial_rouge-l_p | 0.10100927948951721 |
+|rouge_edited_ending_initial_rouge-l_r | 0.2681836485862732  |
+
+
+| rouge_edited_ending_original_rouge-1_f| 0.7531278133392334 |
+| rouge_edited_ending_original_rouge-1_p| 0.7389482855796814 |
+| rouge_edited_ending_original_rouge-1_r| 0.7753328680992126 |
+| rouge_edited_ending_original_rouge-2_f| 0.6301290988922119 |
+| rouge_edited_ending_original_rouge-2_p| 0.6145238280296326 |
+| rouge_edited_ending_original_rouge-2_r| 0.6531437635421753 |
+| rouge_edited_ending_original_rouge-l_f| 0.7497166395187378 |
+| rouge_edited_ending_original_rouge-l_p| 0.7355568408966064 |
+| rouge_edited_ending_original_rouge-l_r| 0.7718437910079956 |
+
+| rouge_prediction_cf_rouge-1_f         |0.16842211782932281 |
+| rouge_prediction_cf_rouge-1_p         |0.12465791404247284 |
+| rouge_prediction_cf_rouge-1_r         |0.28206369280815125 |
+| rouge_prediction_cf_rouge-2_f         |0.022407902404665947|
+| rouge_prediction_cf_rouge-2_p         |0.015689916908740997|
+| rouge_prediction_cf_rouge-2_r         |0.04370618984103203 |
+| rouge_prediction_cf_rouge-l_f         |0.15738092362880707 |
+| rouge_prediction_cf_rouge-l_p         |0.1162935346364975  |
+| rouge_prediction_cf_rouge-l_r         |0.26453089714050293 |
+
+| rouge_prediction_edited_rouge-1_f     | 0.7477840781211853 |
+| rouge_prediction_edited_rouge-1_p     | 0.7710343599319458 |
+| rouge_prediction_edited_rouge-1_r     | 0.7327389717102051 |
+| rouge_prediction_edited_rouge-2_f     | 0.6210501194000244 |
+| rouge_prediction_edited_rouge-2_p     | 0.6443043351173401 |
+| rouge_prediction_edited_rouge-2_r     | 0.6052320599555969 |
+| rouge_prediction_edited_rouge-l_f     | 0.7444990277290344 |
+| rouge_prediction_edited_rouge-l_p     | 0.7676512598991394 |
+| rouge_prediction_edited_rouge-l_r     | 0.7294994592666626 |
+
+| rouge_prediction_initial_rouge-1_f    |0.15811428427696228 |
+| rouge_prediction_initial_rouge-1_p    |0.11256470531225204 |
+| rouge_prediction_initial_rouge-1_r    |0.2829751670360565  |
+| rouge_prediction_initial_rouge-2_f    |0.01917721889913082 |  
+| rouge_prediction_initial_rouge-2_p    |0.013106497004628181|
+| rouge_prediction_initial_rouge-2_r    |0.03867366537451744 |
+| rouge_prediction_initial_rouge-l_f    |0.14854687452316284 |
+| rouge_prediction_initial_rouge-l_p    |0.1055985763669014  |
+| rouge_prediction_initial_rouge-l_r    |0.2669052481651306  |
+
+| rouge_prediction_original_rouge-1_f   |0.9856066107749939  |
+| rouge_prediction_original_rouge-1_p   |0.987214207649231   |
+| rouge_prediction_original_rouge-1_r   |0.9842634201049805  |
+| rouge_prediction_original_rouge-2_f   |0.9729441404342651  |
+| rouge_prediction_original_rouge-2_p   |0.9739639759063721  |
+| rouge_prediction_original_rouge-2_r   |0.9721643924713135  |
+| rouge_prediction_original_rouge-l_f   |0.9856066107749939  |
+| rouge_prediction_original_rouge-l_p   |0.987214207649231   |
+| rouge_prediction_original_rouge-l_r   |0.9842634201049805  |
+
+|              val_loss                         1.0465151071548462
+
+### BART
+
+
+| Metric                                     | Score                 | Comparison                           | BART Score Range | Desired Outcome        | Interpretation                           |
+|--------------------------------------------|-----------------------|--------------------------------------|------------------|------------------------|------------------------------------------|
+| bart_edited_ending_cf_avg_score            | -3.270855665206909    | Edited Ending vs. Counterfactual     | [-Inf, 0]        | Close to 0             | Moderate divergence; improvements needed |
+| bart_edited_ending_initial_avg_score       | -3.405696153640747    | Edited Ending vs. Initial            | [-Inf, 0]        | Close to 0             | High divergence; significant room for improvement |
+| bart_edited_ending_original_avg_score      | -1.4418021440505981   | Edited Ending vs. Original Ending    | [-Inf, 0]        | Close to 0             | Lower divergence; relatively better alignment |
+| bart_prediction_cf_avg_score               | -3.444650411605835    | Prediction vs. Counterfactual        | [-Inf, 0]        | Close to 0             | High divergence; significant room for improvement |
+| bart_prediction_edited_avg_score           | -1.7036479711532593   | Prediction vs. Edited Ending         | [-Inf, 0]        | Close to 0             | Moderate divergence; some alignment observed |
+| bart_prediction_initial_avg_score          | -3.3090765476226807   | Prediction vs. Initial               | [-Inf, 0]        | Close to 0             | High divergence; significant room for improvement |
+| bart_prediction_original_avg_score         | -0.3739939033985138   | Prediction vs. Original Ending       | [-Inf, 0]        | Close to 0             | Slight divergence; good alignment with the original context |
+
+
+
+#### Experiment 4.1 Bleu score: (03/03)
+
+Interpreting the SacreBLEU scores requires understanding how BLEU scores function in the context of natural language processing. BLEU (Bilingual Evaluation Understudy) scores compare machine-generated text to reference texts, assessing the quality of the generated text. The scores range from 0 to 100, where higher scores indicate greater similarity between the generated text and the reference text, suggesting better quality generation.
+
+The SacreBLEU metric extends the original BLEU by providing a standardized way to calculate BLEU scores, ensuring consistent and comparable scores across different evaluations. It does this by taking the generated text (hypotheses) and comparing it against one or more reference texts. These comparisons are done on the corpus level, meaning SacreBLEU considers the entire set of generated texts and their corresponding reference texts as a whole, rather than evaluating each pair in isolation. This approach helps mitigate some of the variability and potential biases that can arise from sentence-level evaluations.
+
+Below are the results of experiment:
+
+| Metric                           | Score               | Desired outcome         | Interpretation                                                                                     |
+|----------------------------------|---------------------|---------------------------------|----------------------------------------------------------------------------------------------------|
+| BLEU(generated-text, edited_ending)  | 81.499              | High               | Indicates a high degree of similarity between the generated text and the labels, suggesting effective learning and generation capabilities.            |
+| BLEU(generated-text, counterfactual) | 16.467              | High               | A lower score here might be expected, as the counterfactual introduces a hypothetical change not necessarily reflected in the text directly. This score suggests room for improvement in integrating counterfactual nuances. |
+| BLEU(generated-text, initial)        | 16.617              | Low                | The model does not overly rely on the initial event in generating the ending, which is desirable as it shows adaptability to the counterfactual change.  |
+| BLEU(generated-text, original_ending)| 95.262              | Low  (probably)     | A high score indicates the generated text is very similar to the original ending, which might suggest a lack of sufficient adaptation to the counterfactual change. However, considering these are long strings and may be inherently similar for effective predictions, this might not be entirely negative. |
+
+Based on your criteria, let's also consider the BLEU scores between the edited endings and other story components as a way to establish a baseline or "upper bound" for the corresponding scores of the predictions:
+
+| Metric                                | Score               | Interpretation Criteria         | Interpretation                                                                                     |
+|---------------------------------------|---------------------|---------------------------------|----------------------------------------------------------------------------------------------------|
+| BLEU(edited_ending, counterfactual)   | 13.745              | High          | Indicates that the labels share some similarity with the counterfactual scenarios but also suggests room for nuanced interpretation and generation by the model. |
+| BLEU(edited_ending, initial)          | 10.881              | Low               | Aligns with the expectation that the edited endings should diverge from the initial event, suggesting the model should focus on integrating the counterfactual change rather than mimicking the initial scenario. |
+| BLEU(edited_ending, original_ending)  | 83.130              | Low (probably)     | A high score suggests that the edited endings are quite similar to the original endings, providing a context where the model might inherently score high when comparing generated text to the original ending due to the similarity in structure and content between the edited and original endings. |
+
+Note: ( to be discussed)
+BLEU(edited_ending, original_ending) : I don't agree with this interpretation criteria, in the paper High is desirable. Minimum changes to the story ending based on the counterfactual was desired.
+
+The model shows strong alignment with the edited endings, indicating effective learning and prediction capabilities. The lower scores with the counterfactual and initial scenarios suggest that while the model adapts to the counterfactual changes, there's potential for further refinement to better integrate these nuances into the generated text. The high similarity between generated texts and the original ending suggests a need to ensure the model sufficiently diverges in response to counterfactual changes, although this interpretation is nuanced by the inherent similarity between edited and original endings in your dataset.
+
+#### 4.1 Bleu Rouge score: (04/03)
+
+| Metric Type | Comparison                         | Score                  | Metric Name                          |
+|-------------|------------------------------------|------------------------|--------------------------------------|
+| ROUGE-1     | Edited Ending vs. Original         | 0.7531278133392334     | rouge_edited_ending_original_rouge-1_f |
+| ROUGE-1     | Edited Ending vs. Counterfactual   | 0.17747779190540314    | rouge_edited_ending_cf_rouge-1_f    |
+| ROUGE-1     | Edited Ending vs. Initial          | 0.15380537509918213    | rouge_edited_ending_initial_rouge-1_f |
+| ROUGE-1     | Prediction vs. Original            | 0.7677057385444641     | rouge_prediction_original_rouge-1_f |
+| ROUGE-1     | Prediction vs. Edited              | 0.5818418860435486     | rouge_prediction_edited_rouge-1_f   |
+| ROUGE-1     | Prediction vs. Counterfactual      | 0.16079357266426086    | rouge_prediction_cf_rouge-1_f       |
+| ROUGE-1     | Prediction vs. Initial             | 0.1546783745288849     | rouge_prediction_initial_rouge-1_f  |
+| ROUGE-2     | Edited Ending vs. Original         | 0.6301290988922119     | rouge_edited_ending_original_rouge-2_f |
+| ROUGE-2     | Edited Ending vs. Counterfactual   | 0.024872800335288048   | rouge_edited_ending_cf_rouge-2_f    |
+| ROUGE-2     | Edited Ending vs. Initial          | 0.01875416561961174    | rouge_edited_ending_initial_rouge-2_f |
+| ROUGE-2     | Prediction vs. Original            | 0.7173408269882202     | rouge_prediction_original_rouge-2_f |
+| ROUGE-2     | Prediction vs. Edited              | 0.44451233744621277    | rouge_prediction_edited_rouge-2_f   |
+| ROUGE-2     | Prediction vs. Counterfactual      | 0.01878502033650875    | rouge_prediction_cf_rouge-2_f       |
+| ROUGE-2     | Prediction vs. Initial             | 0.01721237786114216    | rouge_prediction_initial_rouge-2_f  |
+| BLEU        | Edited Ending vs. Counterfactual   | 0.18647107481956482    | bleu_edited_ending_cf               |
+| BLEU        | Edited Ending vs. Initial          | 0.1779923439025879     | bleu_edited_ending_initial          |
+| BLEU        | Edited Ending vs. Original         | 0.06398702412843704    | bleu_edited_ending_original         |
+| BLEU        | Prediction vs. Counterfactual      | 16.467029571533203     | bleu_prediction_cf                  |
+| BLEU        | Prediction vs. Edited              | 81.49915313720703      | bleu_prediction_edited              |
+| BLEU        | Prediction vs. Initial             | 16.617429733276367     | bleu_prediction_initial             |
+| BLEU        | Prediction vs. Original            | 95.26201629638672      | bleu_prediction_original            |
+
+
+
+
+#### 4.3 BERT score: (04/03)
+
+| Metric Type | Comparison                          | Score                | Metric Name                    |
+|-------------|-------------------------------------|----------------------|--------------------------------|
+| BERT        | Edited Ending vs. Counterfactual    | 0.5746781229972839   | bert_edited_ending_cf          |
+| BERT        | Edited Ending vs. Initial           | 0.5564911365509033   | bert_edited_ending_initial     |
+| BERT        | Edited Ending vs. Original          | 0.8539996147155762   | bert_edited_ending_original    |
+| BERT        | Prediction vs. Counterfactual       | 0.5689771175384521   | bert_prediction_cf             |
+| BERT        | Prediction vs. Edited               | 0.7977718710899353   | bert_prediction_edited         |
+| BERT        | Prediction vs. Initial              | 0.5713935494422913   | bert_prediction_initial        |
+| BERT        | Prediction vs. Original             | 0.8426278233528137   | bert_prediction_original       |
+| N/A         | Model Validation Loss               | 1.044119119644165    | val_loss                       |
+
+
+BERT (Bidirectional Encoder Representations from Transformers) operates fundamentally differently from models that are purely used for generating text or embeddings for similarity comparisons. Here's a brief overview of how BERT works:
+
+ For similarity comparisons, BERT generates embeddings for texts, where each embedding captures semantic information of the text. Similarity between texts can be measured by computing the cosine similarity between their embeddings, with higher scores indicating greater similarity.
+
+BERT's ability to understand the context and nuances of language makes it highly effective for tasks involving natural language understanding, including generating embeddings for similarity comparisons as demonstrated in the table above.
+
+#### Interpretation 
+Understood, let's enhance the interpretations to focus more on the implications of the scores within their context, without altering the scores and avoiding repetition of the comparison details already provided in the table.
+
+### Enhanced Interpretations
+
+| Metric Type | Comparison                         | Score                  | Range  | Desired Outcome | Interpretation                                                                                                                      |
+|-------------|------------------------------------|------------------------|--------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| ROUGE-1     | Edited Ending vs. Original         | 0.7531278133392334     | 0-1    | Low             | A high score suggests significant content overlap, indicating less narrative diversity than desired.                                 |
+| ROUGE-1     | Edited Ending vs. Counterfactual   | 0.17747779190540314    | 0-1    | High            | A low score here points to minimal direct word reuse, aligning with the goal of integrating new counterfactual elements effectively. |
+| ROUGE-1     | Edited Ending vs. Initial          | 0.15380537509918213    | 0-1    | Low             | This low score is favorable, reflecting substantial narrative alteration from the story's beginning.                                |
+| ROUGE-1     | Prediction vs. Original            | 0.7677057385444641     | 0-1    | Low             | The closeness to the original's wording suggests a need for increased novelty in model outputs.                                      |
+| ROUGE-1     | Prediction vs. Edited              | 0.5818418860435486     | 0-1    | High            | Indicates a moderate alignment with human edits, suggesting room for improvement in mimicking desired changes.                       |
+| ROUGE-1     | Prediction vs. Counterfactual      | 0.16079357266426086    | 0-1    | High            | Reflects the model's challenge in fully capturing counterfactual nuances, given the score's proximity to a low overlap.              |
+| ROUGE-1     | Prediction vs. Initial             | 0.1546783745288849     | 0-1    | Low             | Demonstrates the model's effectiveness in diverging from the initial scenario, as evidenced by low overlap.                         |
+| ROUGE-2     | Edited Ending vs. Original         | 0.6301290988922119     | 0-1    | Low             | A high bigram similarity score here signals potential over-reliance on the original narrative structure.                             |
+| ROUGE-2     | Edited Ending vs. Counterfactual   | 0.024872800335288048   | 0-1    | High            | Extremely low bigram overlap underscores the model's capacity to innovate beyond straightforward narrative extensions.             |
+| ROUGE-2     | Edited Ending vs. Initial          | 0.01875416561961174    | 0-1    | Low             | The negligible bigram similarity highlights the model's success in significantly transforming the story from its start.             |
+| BLEU        | Edited Ending vs. Counterfactual   | 0.18647107481956482    | 0-100  | High            | The score indicates a nuanced but limited precision in adapting to the counterfactual, suggesting areas for improvement.            |
+| BLEU        | Edited Ending vs. Initial          | 0.1779923439025879     | 0-100  | Low             | Reflects the model's ability to evolve the narrative from the initial scenario, though the proximity hints at conservative changes. |
+| BLEU        | Edited Ending vs. Original         | 0.06398702412843704    | 0-100  | Low             | Demonstrates significant deviation from the original, with the low precision score indicating substantial narrative innovation.     |
+| BLEU        | Prediction vs. Counterfactual      | 16.467029571533203     | 0-100  | High            | The relatively low score for a BLEU metric suggests the model's limited effectiveness in counterfactual adaptation.                 |
+| BLEU        | Prediction vs. Edited              | 81.49915313720703      | 0-100  | High            | High precision with edited endings shows the model's proficiency in capturing the intended narrative adjustments.                   |
+| BLEU        | Prediction vs. Initial             | 16.617429733276367     | 0-100  | Low             | Indicates the model's creative departure from the initial setup, but suggests further room for diversification.                     |
+| BLEU        | Prediction vs. Original            | 95.26201629638672      | 0-100  | Low             | The high precision score reveals the model's tendency to replicate original narratives closely, highlighting a need for more novelty.|
 
 ## Experiment 1: Initial Prototype
 (Wed 14/02/2023 - branch prototype-end_end). 
@@ -197,159 +477,5 @@ In this experiement we have changed `input_sequence` from the paper format ( pre
 
 The table and analysis illustrate that the changes made in Experiment 3's input sequence format had minimal impact on most performance metrics, with the exception of a somewhat more pronounced increase in validation loss. This provides some insight into the effects of input formatting used in the original paper on the model performance.
 
-## Experiment 4 
-
-These are the metrics agreed upon for Experiment 4
-
-- Standard metric (either BLEU, ROUGE, BERTScore; any version):
-
-(prediction, edited_ending): high is desirable 
-(prediction, counterfactual): high is desirable
-(prediction, initial): low is desirable
-(generated-text, original_ending): low is desirable (probably... these are long strings, and may be rather similar also for effective predictions)
-
-We can compute the difference between the desirable scores and the undesrirable scores as a single, overall metric.
-
-To confirm the validity of the above assumptions, we can measure and report the following quantities on the dataset:
-(edited_ending, counterfactual): high is desirable
-(edited_ending, initial): low is desirable
-(edited_ending, original_ending): low is desirable (probably... these are long strings, and may be rather similar)
-
-We can assume that some of these quantities are an "upper bound" for the corresponding scores of the predictions, but I am not sure if this assumption will hold.
-For instance, one could assume that BLEU(edited_ending, counterfactual) is always > BLEU(prediction, counterfactual), but it may not be true. Logically, they should be similar.
-
-- BARTScore:
-everything said above applies also to BARTScore. We provide the same arguments in the required format, and expect the same trends.
-
-Here 
-edited_ending : labels
-prediction is generated-text
 
 
-#### Experiment 4.1 Bleu score: (03/03)
-
-Interpreting the SacreBLEU scores requires understanding how BLEU scores function in the context of natural language processing. BLEU (Bilingual Evaluation Understudy) scores compare machine-generated text to reference texts, assessing the quality of the generated text. The scores range from 0 to 100, where higher scores indicate greater similarity between the generated text and the reference text, suggesting better quality generation.
-
-The SacreBLEU metric extends the original BLEU by providing a standardized way to calculate BLEU scores, ensuring consistent and comparable scores across different evaluations. It does this by taking the generated text (hypotheses) and comparing it against one or more reference texts. These comparisons are done on the corpus level, meaning SacreBLEU considers the entire set of generated texts and their corresponding reference texts as a whole, rather than evaluating each pair in isolation. This approach helps mitigate some of the variability and potential biases that can arise from sentence-level evaluations.
-
-Below are the results of experiment:
-
-| Metric                           | Score               | Desired outcome         | Interpretation                                                                                     |
-|----------------------------------|---------------------|---------------------------------|----------------------------------------------------------------------------------------------------|
-| BLEU(generated-text, edited_ending)  | 81.499              | High               | Indicates a high degree of similarity between the generated text and the labels, suggesting effective learning and generation capabilities.            |
-| BLEU(generated-text, counterfactual) | 16.467              | High               | A lower score here might be expected, as the counterfactual introduces a hypothetical change not necessarily reflected in the text directly. This score suggests room for improvement in integrating counterfactual nuances. |
-| BLEU(generated-text, initial)        | 16.617              | Low                | The model does not overly rely on the initial event in generating the ending, which is desirable as it shows adaptability to the counterfactual change.  |
-| BLEU(generated-text, original_ending)| 95.262              | Low  (probably)     | A high score indicates the generated text is very similar to the original ending, which might suggest a lack of sufficient adaptation to the counterfactual change. However, considering these are long strings and may be inherently similar for effective predictions, this might not be entirely negative. |
-
-Based on your criteria, let's also consider the BLEU scores between the edited endings and other story components as a way to establish a baseline or "upper bound" for the corresponding scores of the predictions:
-
-| Metric                                | Score               | Interpretation Criteria         | Interpretation                                                                                     |
-|---------------------------------------|---------------------|---------------------------------|----------------------------------------------------------------------------------------------------|
-| BLEU(edited_ending, counterfactual)   | 13.745              | High          | Indicates that the labels share some similarity with the counterfactual scenarios but also suggests room for nuanced interpretation and generation by the model. |
-| BLEU(edited_ending, initial)          | 10.881              | Low               | Aligns with the expectation that the edited endings should diverge from the initial event, suggesting the model should focus on integrating the counterfactual change rather than mimicking the initial scenario. |
-| BLEU(edited_ending, original_ending)  | 83.130              | Low (probably)     | A high score suggests that the edited endings are quite similar to the original endings, providing a context where the model might inherently score high when comparing generated text to the original ending due to the similarity in structure and content between the edited and original endings. |
-
-Note: ( to be discussed)
-BLEU(edited_ending, original_ending) : I don't agree with this interpretation criteria, in the paper High is desirable. Minimum changes to the story ending based on the counterfactual was desired.
-
-The model shows strong alignment with the edited endings, indicating effective learning and prediction capabilities. The lower scores with the counterfactual and initial scenarios suggest that while the model adapts to the counterfactual changes, there's potential for further refinement to better integrate these nuances into the generated text. The high similarity between generated texts and the original ending suggests a need to ensure the model sufficiently diverges in response to counterfactual changes, although this interpretation is nuanced by the inherent similarity between edited and original endings in your dataset.
-
-#### 4.1 Bleu Rouge score: (04/03)
-
-| Metric Type | Comparison                         | Score                  | Metric Name                          |
-|-------------|------------------------------------|------------------------|--------------------------------------|
-| ROUGE-1     | Edited Ending vs. Original         | 0.7531278133392334     | rouge_edited_ending_original_rouge-1_f |
-| ROUGE-1     | Edited Ending vs. Counterfactual   | 0.17747779190540314    | rouge_edited_ending_cf_rouge-1_f    |
-| ROUGE-1     | Edited Ending vs. Initial          | 0.15380537509918213    | rouge_edited_ending_initial_rouge-1_f |
-| ROUGE-1     | Prediction vs. Original            | 0.7677057385444641     | rouge_prediction_original_rouge-1_f |
-| ROUGE-1     | Prediction vs. Edited              | 0.5818418860435486     | rouge_prediction_edited_rouge-1_f   |
-| ROUGE-1     | Prediction vs. Counterfactual      | 0.16079357266426086    | rouge_prediction_cf_rouge-1_f       |
-| ROUGE-1     | Prediction vs. Initial             | 0.1546783745288849     | rouge_prediction_initial_rouge-1_f  |
-| ROUGE-2     | Edited Ending vs. Original         | 0.6301290988922119     | rouge_edited_ending_original_rouge-2_f |
-| ROUGE-2     | Edited Ending vs. Counterfactual   | 0.024872800335288048   | rouge_edited_ending_cf_rouge-2_f    |
-| ROUGE-2     | Edited Ending vs. Initial          | 0.01875416561961174    | rouge_edited_ending_initial_rouge-2_f |
-| ROUGE-2     | Prediction vs. Original            | 0.7173408269882202     | rouge_prediction_original_rouge-2_f |
-| ROUGE-2     | Prediction vs. Edited              | 0.44451233744621277    | rouge_prediction_edited_rouge-2_f   |
-| ROUGE-2     | Prediction vs. Counterfactual      | 0.01878502033650875    | rouge_prediction_cf_rouge-2_f       |
-| ROUGE-2     | Prediction vs. Initial             | 0.01721237786114216    | rouge_prediction_initial_rouge-2_f  |
-| BLEU        | Edited Ending vs. Counterfactual   | 0.18647107481956482    | bleu_edited_ending_cf               |
-| BLEU        | Edited Ending vs. Initial          | 0.1779923439025879     | bleu_edited_ending_initial          |
-| BLEU        | Edited Ending vs. Original         | 0.06398702412843704    | bleu_edited_ending_original         |
-| BLEU        | Prediction vs. Counterfactual      | 16.467029571533203     | bleu_prediction_cf                  |
-| BLEU        | Prediction vs. Edited              | 81.49915313720703      | bleu_prediction_edited              |
-| BLEU        | Prediction vs. Initial             | 16.617429733276367     | bleu_prediction_initial             |
-| BLEU        | Prediction vs. Original            | 95.26201629638672      | bleu_prediction_original            |
-
-
-
-
-#### 4.3 BERT score: (04/03)
-
-| Metric Type | Comparison                          | Score                | Metric Name                    |
-|-------------|-------------------------------------|----------------------|--------------------------------|
-| BERT        | Edited Ending vs. Counterfactual    | 0.5746781229972839   | bert_edited_ending_cf          |
-| BERT        | Edited Ending vs. Initial           | 0.5564911365509033   | bert_edited_ending_initial     |
-| BERT        | Edited Ending vs. Original          | 0.8539996147155762   | bert_edited_ending_original    |
-| BERT        | Prediction vs. Counterfactual       | 0.5689771175384521   | bert_prediction_cf             |
-| BERT        | Prediction vs. Edited               | 0.7977718710899353   | bert_prediction_edited         |
-| BERT        | Prediction vs. Initial              | 0.5713935494422913   | bert_prediction_initial        |
-| BERT        | Prediction vs. Original             | 0.8426278233528137   | bert_prediction_original       |
-| N/A         | Model Validation Loss               | 1.044119119644165    | val_loss                       |
-
-
-BERT (Bidirectional Encoder Representations from Transformers) operates fundamentally differently from models that are purely used for generating text or embeddings for similarity comparisons. Here's a brief overview of how BERT works:
-
- For similarity comparisons, BERT generates embeddings for texts, where each embedding captures semantic information of the text. Similarity between texts can be measured by computing the cosine similarity between their embeddings, with higher scores indicating greater similarity.
-
-BERT's ability to understand the context and nuances of language makes it highly effective for tasks involving natural language understanding, including generating embeddings for similarity comparisons as demonstrated in the table above.
-
-#### Interpretation 
-Understood, let's enhance the interpretations to focus more on the implications of the scores within their context, without altering the scores and avoiding repetition of the comparison details already provided in the table.
-
-### Enhanced Interpretations
-
-| Metric Type | Comparison                         | Score                  | Range  | Desired Outcome | Interpretation                                                                                                                      |
-|-------------|------------------------------------|------------------------|--------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| ROUGE-1     | Edited Ending vs. Original         | 0.7531278133392334     | 0-1    | Low             | A high score suggests significant content overlap, indicating less narrative diversity than desired.                                 |
-| ROUGE-1     | Edited Ending vs. Counterfactual   | 0.17747779190540314    | 0-1    | High            | A low score here points to minimal direct word reuse, aligning with the goal of integrating new counterfactual elements effectively. |
-| ROUGE-1     | Edited Ending vs. Initial          | 0.15380537509918213    | 0-1    | Low             | This low score is favorable, reflecting substantial narrative alteration from the story's beginning.                                |
-| ROUGE-1     | Prediction vs. Original            | 0.7677057385444641     | 0-1    | Low             | The closeness to the original's wording suggests a need for increased novelty in model outputs.                                      |
-| ROUGE-1     | Prediction vs. Edited              | 0.5818418860435486     | 0-1    | High            | Indicates a moderate alignment with human edits, suggesting room for improvement in mimicking desired changes.                       |
-| ROUGE-1     | Prediction vs. Counterfactual      | 0.16079357266426086    | 0-1    | High            | Reflects the model's challenge in fully capturing counterfactual nuances, given the score's proximity to a low overlap.              |
-| ROUGE-1     | Prediction vs. Initial             | 0.1546783745288849     | 0-1    | Low             | Demonstrates the model's effectiveness in diverging from the initial scenario, as evidenced by low overlap.                         |
-| ROUGE-2     | Edited Ending vs. Original         | 0.6301290988922119     | 0-1    | Low             | A high bigram similarity score here signals potential over-reliance on the original narrative structure.                             |
-| ROUGE-2     | Edited Ending vs. Counterfactual   | 0.024872800335288048   | 0-1    | High            | Extremely low bigram overlap underscores the model's capacity to innovate beyond straightforward narrative extensions.             |
-| ROUGE-2     | Edited Ending vs. Initial          | 0.01875416561961174    | 0-1    | Low             | The negligible bigram similarity highlights the model's success in significantly transforming the story from its start.             |
-| BLEU        | Edited Ending vs. Counterfactual   | 0.18647107481956482    | 0-100  | High            | The score indicates a nuanced but limited precision in adapting to the counterfactual, suggesting areas for improvement.            |
-| BLEU        | Edited Ending vs. Initial          | 0.1779923439025879     | 0-100  | Low             | Reflects the model's ability to evolve the narrative from the initial scenario, though the proximity hints at conservative changes. |
-| BLEU        | Edited Ending vs. Original         | 0.06398702412843704    | 0-100  | Low             | Demonstrates significant deviation from the original, with the low precision score indicating substantial narrative innovation.     |
-| BLEU        | Prediction vs. Counterfactual      | 16.467029571533203     | 0-100  | High            | The relatively low score for a BLEU metric suggests the model's limited effectiveness in counterfactual adaptation.                 |
-| BLEU        | Prediction vs. Edited              | 81.49915313720703      | 0-100  | High            | High precision with edited endings shows the model's proficiency in capturing the intended narrative adjustments.                   |
-| BLEU        | Prediction vs. Initial             | 16.617429733276367     | 0-100  | Low             | Indicates the model's creative departure from the initial setup, but suggests further room for diversification.                     |
-| BLEU        | Prediction vs. Original            | 95.26201629638672      | 0-100  | Low             | The high precision score reveals the model's tendency to replicate original narratives closely, highlighting a need for more novelty.|
-
-Understood, let's enhance the interpretations to focus more on the implications of the scores within their context, without altering the scores and avoiding repetition of the comparison details already provided in the table.
-
-### Enhanced Interpretations
-
-| Metric Type | Comparison                         | Score                  | Range  | Desired Outcome | Interpretation                                                                                                                      |
-|-------------|------------------------------------|------------------------|--------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| ROUGE-1     | Edited Ending vs. Original         | 0.7531278133392334     | 0-1    | Low             | A high score suggests significant content overlap, indicating less narrative diversity than desired.                                 |
-| ROUGE-1     | Edited Ending vs. Counterfactual   | 0.17747779190540314    | 0-1    | High            | A low score here points to minimal direct word reuse, aligning with the goal of integrating new counterfactual elements effectively. |
-| ROUGE-1     | Edited Ending vs. Initial          | 0.15380537509918213    | 0-1    | Low             | This low score is favorable, reflecting substantial narrative alteration from the story's beginning.                                |
-| ROUGE-1     | Prediction vs. Original            | 0.7677057385444641     | 0-1    | Low             | The closeness to the original's wording suggests a need for increased novelty in model outputs.                                      |
-| ROUGE-1     | Prediction vs. Edited              | 0.5818418860435486     | 0-1    | High            | Indicates a moderate alignment with human edits, suggesting room for improvement in mimicking desired changes.                       |
-| ROUGE-1     | Prediction vs. Counterfactual      | 0.16079357266426086    | 0-1    | High            | Reflects the model's challenge in fully capturing counterfactual nuances, given the score's proximity to a low overlap.              |
-| ROUGE-1     | Prediction vs. Initial             | 0.1546783745288849     | 0-1    | Low             | Demonstrates the model's effectiveness in diverging from the initial scenario, as evidenced by low overlap.                         |
-| ROUGE-2     | Edited Ending vs. Original         | 0.6301290988922119     | 0-1    | Low             | A high bigram similarity score here signals potential over-reliance on the original narrative structure.                             |
-| ROUGE-2     | Edited Ending vs. Counterfactual   | 0.024872800335288048   | 0-1    | High            | Extremely low bigram overlap underscores the model's capacity to innovate beyond straightforward narrative extensions.             |
-| ROUGE-2     | Edited Ending vs. Initial          | 0.01875416561961174    | 0-1    | Low             | The negligible bigram similarity highlights the model's success in significantly transforming the story from its start.             |
-| BLEU        | Edited Ending vs. Counterfactual   | 0.18647107481956482    | 0-100  | High            | The score indicates a nuanced but limited precision in adapting to the counterfactual, suggesting areas for improvement.            |
-| BLEU        | Edited Ending vs. Initial          | 0.1779923439025879     | 0-100  | Low             | Reflects the model's ability to evolve the narrative from the initial scenario, though the proximity hints at conservative changes. |
-| BLEU        | Edited Ending vs. Original         | 0.06398702412843704    | 0-100  | Low             | Demonstrates significant deviation from the original, with the low precision score indicating substantial narrative innovation.     |
-| BLEU        | Prediction vs. Counterfactual      | 16.467029571533203     | 0-100  | High            | The relatively low score for a BLEU metric suggests the model's limited effectiveness in counterfactual adaptation.                 |
-| BLEU        | Prediction vs. Edited              | 81.49915313720703      | 0-100  | High            | High precision with edited endings shows the model's proficiency in capturing the intended narrative adjustments.                   |
-| BLEU        | Prediction vs. Initial             | 16.617429733276367     | 0-100  | Low             | Indicates the model's creative departure from the initial setup, but suggests further room for diversification.                     |
-| BLEU        | Prediction vs. Original            | 95.26201629638672      | 0-100  | Low             | The high precision score reveals the model's tendency to replicate original narratives closely, highlighting a need for more novelty.|
-
-These interpretations are crafted to provide insights into the model's performance in adapting and transforming narratives based on the given scores, emphasizing areas of strength and potential improvement without repeating the details of the comparisons.
