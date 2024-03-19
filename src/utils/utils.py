@@ -101,7 +101,7 @@ def collate_fn(batch):
     tensor formats suitable for model input. This function is specifically tailored
     for batches of data that have been preprocessed with `preprocess_data`.
     """
-    print("\nCollating batch data...")
+    print(f"Amelie: Collating batch of size {len(batch)}")
     
     # Unpack the batch into separate lists for each field.
     input_ids, attention_mask, labels, premise, initial, original_ending, counterfactual, edited_ending = list(zip(*batch))
