@@ -17,7 +17,10 @@ CONFIG = {
     "bart_score_dir": BARTSCORE_DIR,  # Add the BARTScore directory
     
     # Model and training configurations
-    "model_name": os.getenv('MODEL_NAME', "google/flan-t5-base"),  # Default to "google/flan-t5-base" if not set
+    #"model_name": os.getenv('MODEL_NAME', "google/flan-t5-base"),
+    #"model_name": os.getenv('MODEL_NAME', "google/flan-t5-xl"),
+    #"model_name": os.getenv('MODEL_NAME', "google/flan-t5-xxl"),
+    "model_name": os.getenv('MODEL_NAME', "google/flan-t5-large"),
     "batch_size": int(os.getenv('BATCH_SIZE', 4)),  # Convert to int as environment variables are strings
     "num_workers": int(os.getenv('NUM_WORKERS', 3)),
     "max_epochs": int(os.getenv('MAX_EPOCHS', 3)),

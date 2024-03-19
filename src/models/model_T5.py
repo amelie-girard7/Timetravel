@@ -1,4 +1,6 @@
 # src/models/model_T5.py
+import csv
+import os
 import sys
 import torch
 from src.utils.config import CONFIG
@@ -7,6 +9,7 @@ import pytorch_lightning as pl
 from sacrebleu.metrics import BLEU
 from rouge import Rouge
 from bert_score import BERTScorer
+
 
 # Add BARTScore directory to Python path
 bart_score_path = str(CONFIG["bart_score_dir"])
@@ -24,11 +27,17 @@ class FlanT5FineTuner(pl.LightningModule):
     It handles the forward pass, training, validation, and testing steps.
     """
 
-    def __init__(self, model_name):
+    def __init__(self, model_name, model_dir):
         """
         Initializes the model components, tokenizer, and metrics scorer.
         """
         super().__init__()
+
+        self.model_dir = model_dir
+        self.val_csv_file_path = os.path.join(self.model_dir, "validation_details.csv")
+        self.test_csv_file_path = os.path.join(self.model_dir, "test_details.csv")
+
+
         self.model = T5ForConditionalGeneration.from_pretrained(model_name)
         self.tokenizer = T5Tokenizer.from_pretrained(model_name)
         
@@ -44,7 +53,10 @@ class FlanT5FineTuner(pl.LightningModule):
 
         # Initialize the list to store validation step outputs
         self.current_val_step_outputs = []
-
+        
+        # Temporary storage for validation details
+        self.epoch_validation_details = []  
+        self.epoch_test_details = []
 
     
     def forward(self, input_ids, attention_mask, labels):
@@ -92,15 +104,13 @@ class FlanT5FineTuner(pl.LightningModule):
         print("-- validation_step --")
         
         # Ensure model T5 is in evaluation mode
-        # This disables dropout or batchnorm layers and is important for
-        # model evaluation to ensure consistent results
         self.model.eval()
-           
+        
         # Forward pass to compute loss and model outputs
         outputs = self.forward(
             input_ids=batch['input_ids'],
             attention_mask=batch['attention_mask'],
-            labels=batch['labels'],
+            labels=batch['labels']
         )
         val_loss = outputs.loss
         self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
@@ -113,17 +123,20 @@ class FlanT5FineTuner(pl.LightningModule):
             max_length=250 # Specify the desired maximum length of generated text
         )
         
-        # Decode the labels (ground truth edited ending) from the batch for comparison with the model's generated text.
+        # Decode the labels (ground truth edited ending) from the batch for comparison with the model's generated text
         edited_endings = batch['edited_ending']
-
-        #printing details for the first story in the batch
-        print(f"--Premise: {batch['premise'][0]}")
-        print(f"--Initial: {batch['initial'][0]}")
-        print(f"--Counterfactual: {batch['counterfactual'][0]}")
-        print(f"--Original Ending: {batch['original_ending'][0]}")
-        print(f"--Edited Ending: {edited_endings[0]}")
-        print(f"--Generated Text: {generated_texts[0]}")  
-
+        
+        # Collect details for all stories in the current batch
+        for i in range(len(batch['premise'])):
+            self.epoch_validation_details.append({
+                'Epoch': self.current_epoch,
+                'Premise': batch['premise'][i],
+                'Initial': batch['initial'][i],
+                'Counterfactual': batch['counterfactual'][i],
+                'Original Ending': batch['original_ending'][i],
+                'Edited Ending': batch['edited_ending'][i],
+                'Generated Text': generated_texts[i]  # Assuming generated_texts is defined as before
+            })
 
         # Store output information for metric calculation at the end of the epoch
         output = {
@@ -133,18 +146,18 @@ class FlanT5FineTuner(pl.LightningModule):
             'premises': batch['premise'],
             'counterfactuals': batch['counterfactual'],
             'original_endings': batch['original_ending'],
-            'initials': batch['initial'],
+            'initials': batch['initial']
         }
         self.current_val_step_outputs.append(output)
         print(f"Validation step {batch_idx} completed.")
 
-        
-    def on_validation_epoch_end(self):
+    def on_validation_epoch_end(self, test_flag=False):
         """
         Handles operations to perform at the end of each validation epoch.
         """
         print("-- on_validation_epoch_end --")
-        self.model.train()
+
+        #self.model.train() #Lightning automatically sets the model to the appropriate mode (training, validation, or test) before each step
         # Prepare lists to store generated texts and their corresponding references
         all_generated_texts = []
         all_edited_endings = []
@@ -174,11 +187,36 @@ class FlanT5FineTuner(pl.LightningModule):
         
         # Calculate and log BART similarity scores
         self.calculate_and_log_bart_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+    
+        csv_file_path = self.test_csv_file_path if test_flag else self.val_csv_file_path
+        print(f"CSV file path: {csv_file_path}")
+
+        # Check if the file exists
+        file_exists = os.path.isfile(csv_file_path)
+        print(f"File exists: {file_exists}")  # Debugging print
+
+        with open(csv_file_path, 'a', newline='') as csvfile:
+            fieldnames = ['Epoch', 'Premise', 'Initial', 'Counterfactual', 'Original Ending', 'Edited Ending', 'Generated Text']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+            # Write the header only if the file didn't exist before this operation
+            if not file_exists:
+                print("Writing CSV header")  # Debugging print
+                writer.writeheader()
+            
+            print(f"Writing details for epoch {self.current_epoch}")  # Debugging print
+            for detail in self.epoch_validation_details:
+                writer.writerow(detail)
+                print(f"Wrote detail: {detail}")  # Debugging print
+        
+        print(f" Amelie:Clearing validation details. Epoch: {self.current_epoch}, Details Count: {len(self.epoch_validation_details)}, Outputs Count: {len(self.current_val_step_outputs)}")
+        # Clear the details list to start fresh for the next epoch
+        self.epoch_validation_details.clear()
 
         # Clear the list of outputs for the next epoch
         self.current_val_step_outputs = []
+        print(f"Amelie: Lists cleared. New Details Count: {len(self.epoch_validation_details)}, New Outputs Count: {len(self.current_val_step_outputs)}")
         print("Validation epoch ended. Metrics logged.")
-        
 
     def calculate_and_log_bleu_scores(self, all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings):
         """
@@ -323,11 +361,13 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         Called during the testing loop to perform a forward pass with a batch from the test set, calculate the loss, and optionally generate text.
         """
-    
+        print("Amelie :  Test Step")
         return self.validation_step(batch, batch_idx)
     
     def on_test_epoch_end(self):
-        return self.on_validation_epoch_end()
+          # This should call the function with the test_flag set to True.
+        print("Amelie: on_test_epoch_end called")
+        return self.on_validation_epoch_end(test_flag=True)
 
 
     def configure_optimizers(self):
@@ -339,7 +379,7 @@ class FlanT5FineTuner(pl.LightningModule):
         
         #lr = CONFIG.get("learning_rate", 2e-5)  # Fetch the learning rate from CONFIG with a default
         #return torch.optim.AdamW(self.model.parameters(), lr=lr)
-        optimizer = torch.optim.AdamW(self.parameters(), lr=0.001)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=2e-5)
         return optimizer
 
     def generate_text(self, input_ids, attention_mask, max_length=250):
@@ -364,4 +404,3 @@ class FlanT5FineTuner(pl.LightningModule):
         ]
 
         return generated_texts
-

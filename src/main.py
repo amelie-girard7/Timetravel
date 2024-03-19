@@ -25,7 +25,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Instantiate the tokenizer
-tokenizer = T5Tokenizer.from_pretrained('google/flan-t5-base')
+#tokenizer = T5Tokenizer.from_pretrained('google/flan-t5-base')
+tokenizer = T5Tokenizer.from_pretrained('google/flan-t5-large')
 
 
 def setup_model():
@@ -40,7 +41,9 @@ def setup_dataloaders(model, tokenizer):
     Sets up PyTorch dataloaders for the training, validation, and test datasets.
     """
     data_path = CONFIG["data_dir"] / 'transformed'
-    file_names = ['train_supervised_small.json', 'dev_data.json', 'test_data.json']
+    #file_names = ['train_supervised_small_sample.json', 'dev_data_sample.json', 'test_data_sample.json']
+    #file_names = ['train_supervised_small.json', 'dev_data.json', 'test_data.json']
+    file_names = ['train_supervised_large.json', 'dev_data.json', 'test_data.json']
 
     dataloaders = create_dataloaders(
         data_path,
@@ -70,24 +73,22 @@ def setup_trainer(model_save_path):
         mode='min'
     )
     
-    logger = TensorBoardLogger(save_dir=os.path.join(model_save_path, 'lightning_logs'), name='flan-t5')
+    logger = TensorBoardLogger(save_dir=os.path.join(model_save_path, 'lightning_logs'), name='flan-t5-large')
 
     # Define a PyTorch Lightning trainer with the desired settings.
     if torch.cuda.is_available():
         trainer = Trainer(
             max_epochs=CONFIG["max_epochs"],
             accelerator='gpu',
-            devices=1,  # Specify the number of GPUs you want to use.
+            devices="auto",  # Auto-detect and use all available GPUs
             logger=logger,
             callbacks=[checkpoint_callback],
-            # Additional parameters can be passed according to requirements.
         )
     else:
         trainer = Trainer(
             max_epochs=CONFIG["max_epochs"],
             logger=logger,
             callbacks=[checkpoint_callback],
-            # Additional parameters can be passed according to requirements.
         )
     return trainer
 
@@ -104,7 +105,12 @@ def main():
 
         trainer = setup_trainer(model_save_path)
 
-        train_dataloader = dataloaders['train_supervised_small.json']
+        #train_dataloader = dataloaders['train_supervised_small_sample.json']
+        #valid_dataloader = dataloaders['dev_data_sample.json']
+        #test_dataloader = dataloaders['test_data_sample.json']
+
+        #train_dataloader = dataloaders['train_supervised_small.json']
+        train_dataloader = dataloaders['train_supervised_large.json']
         valid_dataloader = dataloaders['dev_data.json']
         test_dataloader = dataloaders['test_data.json']
 
