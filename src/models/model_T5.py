@@ -177,16 +177,16 @@ class FlanT5FineTuner(pl.LightningModule):
         print("Aggregated texts for BLEU and ROUGE  and BERT similarity score calculation.")
 
         # Calculate and log BLEU similarity scores for various comparisons
-        self.calculate_and_log_bleu_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        #self.calculate_and_log_bleu_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
 
         # Calculate and log ROUGE similarity scores for various comparisons
-        self.calculate_and_log_rouge_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        #self.calculate_and_log_rouge_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
         
         # Calculate and log BERT similarity scores for various comparisons 
-        self.calculate_and_log_bert_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        #self.calculate_and_log_bert_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
         
         # Calculate and log BART similarity scores
-        self.calculate_and_log_bart_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        #self.calculate_and_log_bart_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
     
         csv_file_path = self.test_csv_file_path if test_flag else self.val_csv_file_path
         print(f"CSV file path: {csv_file_path}")
