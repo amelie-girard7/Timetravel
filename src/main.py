@@ -44,8 +44,8 @@ def setup_dataloaders(model, tokenizer):
     Sets up PyTorch dataloaders for the training, validation, and test datasets.
     """
     data_path = CONFIG["data_dir"] / 'transformed'
-    #file_names = ['train_supervised_small_sample.json', 'dev_data_sample.json', 'test_data_sample.json']
-    file_names = ['train_supervised_small.json', 'dev_data.json', 'test_data.json']
+    file_names = ['train_supervised_small_sample.json', 'dev_data_sample.json', 'test_data_sample.json']
+    #file_names = ['train_supervised_small.json', 'dev_data.json', 'test_data.json']
 
     dataloaders = create_dataloaders(
         data_path,
@@ -111,13 +111,13 @@ def main():
 
         trainer = setup_trainer(model_dir, model_timestamp) # Pass the timestamped directory path here
 
-        #train_dataloader = dataloaders['train_supervised_small_sample.json']
-        #valid_dataloader = dataloaders['dev_data_sample.json']
-        #test_dataloader = dataloaders['test_data_sample.json']
+        train_dataloader = dataloaders['train_supervised_small_sample.json']
+        valid_dataloader = dataloaders['dev_data_sample.json']
+        test_dataloader = dataloaders['test_data_sample.json']
 
-        train_dataloader = dataloaders['train_supervised_small.json']
-        valid_dataloader = dataloaders['dev_data.json']
-        test_dataloader = dataloaders['test_data.json']
+        #train_dataloader = dataloaders['train_supervised_small.json']
+        #valid_dataloader = dataloaders['dev_data.json']
+        #test_dataloader = dataloaders['test_data.json']
 
         # Start the training process.
         trainer.fit(model, train_dataloader, valid_dataloader)
