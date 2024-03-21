@@ -38,9 +38,9 @@ class FlanT5FineTuner(pl.LightningModule):
         self.model = T5ForConditionalGeneration.from_pretrained(model_name)
         self.tokenizer = T5Tokenizer.from_pretrained(model_name)
         
-        # Paths for saving validation and test details, using CONFIG for directory paths.
-        self.val_csv_file_path = CONFIG["models_dir"] / "validation_details.csv"
-        self.test_csv_file_path = CONFIG["models_dir"] / "test_details.csv"
+         # Use the same timestamped model_dir for CSVs and model checkpoints
+        self.val_csv_file_path = model_dir / "validation_details.csv"
+        self.test_csv_file_path = model_dir / "test_details.csv"
 
         
         # Initializing metrics for validation.
@@ -64,8 +64,7 @@ class FlanT5FineTuner(pl.LightningModule):
         self.current_val_step_outputs = []
         
         # Temporary storage for Text-generation sanity check
-        self.epoch_validation_details = []  
-        self.epoch_test_details = []
+        self.epoch_validation_details = []
  
     def forward(self, input_ids, attention_mask, labels=None):
         """
@@ -170,6 +169,7 @@ class FlanT5FineTuner(pl.LightningModule):
         self.log_metrics(aggregated_texts)
     
         csv_file_path = self.determine_csv_path(test_flag)
+        # Check if the file exists
         self.log_to_csv(csv_file_path, self.epoch_validation_details)
         self.cleanup_epoch_data()
 

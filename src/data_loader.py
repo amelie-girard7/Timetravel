@@ -12,7 +12,6 @@ class CustomJSONDataset(Dataset):
     A custom PyTorch Dataset class designed for loading and preprocessing data stored in JSON format.
     It supports tokenization and other preprocessing steps necessary for model training and evaluation.
     """
-
     def __init__(self, file_path, tokenizer):
         """
         Initializes the dataset object.

@@ -41,6 +41,7 @@ CONFIG = {
 
     # BARTScorer settings
     "bart_scorer_checkpoint": "facebook/bart-large-cnn",
+
 }
 
 # Optionally, validate or create the directories
