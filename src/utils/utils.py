@@ -1,24 +1,25 @@
 # src/utils/utils.py
 
-#from fileinput import filename
 import json
 import logging
 import torch
 import torch.nn.utils.rnn
+from src.utils.config import CONFIG
 
-
-# Global constant for padding token ID, set to 0 by default for T5.
-PAD_TOKEN_ID = 0
-
-# # Configure a module-level logger using the standard Python logging library.
 logger = logging.getLogger(__name__)
 
 def count_json_lines(file_path):
     """
-    Counts the number of lines in a JSON file. This can be useful for estimating
-    the size of the dataset and for iteration purposes.
+    Counts the number of lines in a JSON file, which is useful for estimating
+    the dataset size or for iterative processing without loading the entire file.
+    
+    Parameters:
+        file_path (str): The path to the JSON file.
+        
+    Returns:
+        int: The number of lines in the file.
     """
-    print(f"Counting lines in file: {file_path}")
+    logger.info(f"Counting lines in file: {file_path}")
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             return sum(1 for _ in file)
@@ -26,13 +27,18 @@ def count_json_lines(file_path):
         logger.error(f"File not found: {file_path}")
         raise FileNotFoundError(f"File not found: {file_path}")
     
-
 def load_first_line_from_json(file_path):
     """
-    Loads and parses the first line from a JSON file. Useful for quickly inspecting
-    the structure of the data without needing to load the entire file into memory.
+    Loads and parses the first line from a JSON file. This is useful for inspecting
+    the data structure without loading the entire file.
+    
+    Parameters:
+        file_path (str): The path to the JSON file.
+        
+    Returns:
+        dict: The first JSON object in the file.
     """
-    print(f"Loading first line from JSON file: {file_path}")
+    logger.info(f"Loading first line from JSON file: {file_path}")
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             return json.loads(next(file))
@@ -40,13 +46,22 @@ def load_first_line_from_json(file_path):
         logger.error(f"Error reading from {file_path}: {e}")
         raise IOError(f"Error reading from {file_path}: {e}")
 
-def preprocess_data(row, tokenizer, max_length=512):
+def preprocess_data(row, tokenizer):
     """
-    Preprocesses a single row of data to format it for input to the T5 model. This includes
-    constructing the input sequence from the various components of the data and tokenizing it
-    along with the output sequence.
+    Prepares a single row of data for model input by tokenizing the text fields.
+    It constructs the input sequence by combining story parts and tokenizes them.
+    
+    Parameters:
+        row (pd.Series): A row from the dataset.
+        tokenizer: The tokenizer used for text processing.
+        max_length (int): The maximum token length for model inputs.
+        
+    Returns:
+        dict: A dictionary containing tokenized inputs, attention masks, labels, and original text for evaluation.
     """
-    print("\nPreprocessing data row...")
+    logger.debug("Preprocessing data row...")
+    
+    max_length = CONFIG["max_gen_length"] 
     
     try:
         # Define the separator token specific to the T5 model.
@@ -59,24 +74,19 @@ def preprocess_data(row, tokenizer, max_length=512):
             f"{row['original_ending']} {separator_token} "
             f"{row['premise']} {row['counterfactual']}"
         )
-        print(f"Constructed input sequence: {input_sequence[:128]}...")
         
         # Tokenize the input sequence with truncation to max_length and no padding here.
         tokenized_inputs = tokenizer.encode_plus(
             input_sequence, truncation=True, return_tensors="pt", max_length=max_length
         )
-        print("Tokenized input sequence.")
         
         # Join the list of edited endings into a single string
         edited_ending_joined = ' '.join(row['edited_ending'])
-        # edited_ending_joined = ' '.join(row['edited_ending'] if isinstance(row['edited_ending'], list) else [row['edited_ending']])
-        print(f"Constructed edited ending sequence: {edited_ending_joined[:50]}...")
         
         # Tokenize the output sequence (edited ending) with truncation to max_length.
         tokenized_ending = tokenizer.encode_plus(
             edited_ending_joined, truncation=True, return_tensors="pt", max_length=max_length
         )
-        print("Tokenized edited ending sequence.")
         
         # Return the tokenized inputs, labels, and original data fields for evaluation.
         return {
@@ -93,37 +103,34 @@ def preprocess_data(row, tokenizer, max_length=512):
     except Exception as e:
         logger.error(f"Error in preprocess_data: {e}")
         return None
-
-
-def collate_fn(batch):
+    
+def collate_fn(batch, pad_token_id=0,attention_pad_value=0):
     """
-    Custom collate function to pad and combine a batch of preprocessed data into
-    tensor formats suitable for model input. This function is specifically tailored
-    for batches of data that have been preprocessed with `preprocess_data`.
+    Collates a batch of preprocessed data into a format suitable for model input,
+    including padding to equalize the lengths of sequences within the batch.
+    
+    Parameters:
+        batch (list of dicts): A batch of data points.
+        pad_token_id (int, optional): Token ID used for padding. Default is 0.
+        
+    Returns:
+        dict: A dictionary containing batched and padded input_ids, attention_mask,
+        labels, and other fields for evaluation.
     """
-    print(f"Amelie: Collating batch of size {len(batch)}")
     
     # Unpack the batch into separate lists for each field.
     input_ids, attention_mask, labels, premise, initial, original_ending, counterfactual, edited_ending = list(zip(*batch))
-    
-    # Pad the sequences for 'input_ids', 'attention_mask', and 'labels' to the longest in the batch.
-    # input_ids = pad_sequence(input_ids, batch_first=True, padding_value=PAD_TOKEN_ID)
-    # TODO: Try to pass the PAD_TOKEN_ID as a parameter to the collate_fn
-    input_ids = torch.nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=PAD_TOKEN_ID)
-    print("Padded input_ids.")
-    attention_mask = torch.nn.utils.rnn.pad_sequence(attention_mask, batch_first=True, padding_value=0)
-    print("Padded attention_mask.")
-    labels = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=PAD_TOKEN_ID)
-    print("Padded labels.")
 
-    print("Batch collated successfully.")
+    # Padding sequences for 'input_ids', 'attention_masks', and 'labels'
+    input_ids_padded = torch.nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=pad_token_id)
+    attention_masks_padded = torch.nn.utils.rnn.pad_sequence(attention_mask, batch_first=True, padding_value=attention_pad_value)
+    labels_padded = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=pad_token_id)
     
     # Return the padded tensors along with the additional fields for evaluation.
     return {
-        'input_ids': input_ids,
-        'attention_mask': attention_mask,
-        'labels': labels,
-        # Additional fields for evaluation
+        'input_ids': input_ids_padded,
+        'attention_mask': attention_masks_padded,
+        'labels': labels_padded,
         'premise': premise,
         'initial': initial,
         'original_ending': original_ending,

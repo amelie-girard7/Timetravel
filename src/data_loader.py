@@ -5,28 +5,34 @@ from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
 from torch.nn.utils.rnn import pad_sequence
 from src.utils.utils import preprocess_data, collate_fn
+from src.utils.config import CONFIG
 
 class CustomJSONDataset(Dataset):
     """
-    A PyTorch Dataset class that handles loading and preprocessing data from JSON files.
+    A custom PyTorch Dataset class designed for loading and preprocessing data stored in JSON format.
+    It supports tokenization and other preprocessing steps necessary for model training and evaluation.
     """
 
     def __init__(self, file_path, tokenizer):
-        print(f"Initializing dataset with file: {file_path}")
+        """
+        Initializes the dataset object.
+        """
+        # Attempt to load and preprocess data,
         try:
             data = pd.read_json(file_path, lines=True)
-            print(f"Successfully read {len(data)} rows from {file_path}")
+            # Reading data using pandas.
         except pd.errors.ParserError as e:
             raise ValueError(f"Error parsing {file_path}: {e}")
+            # Specific catch for parsing errors to provide more informative feedback.
         except FileNotFoundError:
+            # Specific catch for file not found errors.
             raise FileNotFoundError(f"File not found: {file_path}")
         
-        self.tokenizer = tokenizer
+        self.tokenizer = tokenizer # Store the tokenizer for later use in preprocessing.
 
-        # Pass tokenizer to preprocess_data via lambda function
-        self.processed_data = data.apply(lambda row: preprocess_data(row, tokenizer), axis=1, result_type='expand') # Use lambda to pass tokenizer
-        print(f"Data preprocessing completed. Processed data size: {len(self.processed_data)}")
-
+        # Preprocess the data using the provided tokenizer.
+        # Applying preprocessing row-wise and expanding the result to columns for easier access.
+        self.processed_data = data.apply(lambda row: preprocess_data(row, tokenizer), axis=1, result_type='expand')
 
     def __len__(self):
         """Returns the total number of items in the dataset."""
@@ -35,51 +41,48 @@ class CustomJSONDataset(Dataset):
     def __getitem__(self, idx):
         """
         Retrieves an item by its index from the dataset.
-        """
-        print(f"---Dataloader getitem---")
         
+        Parameters:
+            idx (int): The index of the item to retrieve.
+            
+        Returns:
+            A single data item processed and ready for model input.
+        """
         item = self.processed_data.iloc[idx]
-        # Debugging: Only print for the first few indices
-        if idx < 3:  #
-            print(f"Item at index {idx}: {item.to_dict()}")
-            print(f"Keys at index {idx}: {item.keys().tolist()}")
         return item
 
-
-def create_dataloaders(data_path, file_names, batch_size, tokenizer, num_workers=0):
+def create_dataloaders(data_path, tokenizer, batch_size, num_workers):
     """
-    This function is responsible for creating DataLoader instances for datasets.
+    Creates DataLoader instances for each dataset specified by file_names.
+    
+    Parameters:
+        data_path (Path or str): The base path where data files are stored.
+        tokenizer: The tokenizer to use for preprocessing text.
+        batch_size (int): The number of items per batch.
+        num_workers (int): The number of subprocesses to use for data loading.
+        
+    Returns:
+        A dictionary of DataLoader objects keyed by file name.
     """
+    file_names = [CONFIG["train_file"], CONFIG["dev_file"], CONFIG["test_file"]]
+    
     dataloaders = {}
     for file_name in file_names:
-        # Construct the full path to the dataset file
         file_path = Path(data_path) / file_name
         if not file_path.exists():
             raise FileNotFoundError(f"{file_path} does not exist.")
-
-        # Initialize a custom dataset. This step involves reading the data file and preprocessing it
-        # using the tokenizer to make it suitable for model input.
         dataset = CustomJSONDataset(file_path, tokenizer)
 
-        # Create a DataLoader for the dataset. DataLoader abstracts the complexity of fetching,
-        # transforming, and batching the data, making it ready for training or validation.
-        # `collate_fn` is used to specify how a list of samples is combined into a batch.
-        # This is especially important because we are dealing with variable-length inputs.
+        # Creating an instance of the custom dataset for each file.
         dataloader = DataLoader(
             dataset, 
             batch_size=batch_size,
-            collate_fn=collate_fn,  # Custom function to combine data samples into a batch
-            num_workers=num_workers,  # Number of subprocesses for data loading. 0 means data will be loaded in the main process.
-            
-            # `persistent_workers=True` is recommended when using multiple workers (num_workers > 0).
-            # It keeps the worker processes alive across data fetches rather than restarting them for each fetch.
-            #persistent_workers=True if num_workers > 0 else False,
+            collate_fn=lambda batch: collate_fn(batch, pad_token_id=tokenizer.pad_token_id), 
+            num_workers=num_workers,
         )
 
-        # Store the DataLoader in a dictionary using the file name as the key.
-        # This allows for easy access to different dataloaders for training, validation, and testing.
-        dataloaders[file_name] = dataloader
-        print(f"Dataloader created for {file_name}")
-
+        # Use a simplified key for each dataloader, based on the file name.
+        key = file_name.split('.')[0]  # 'train_supervised_small_sample' for example
+        dataloaders[key] = dataloader
+        
     return dataloaders
-
