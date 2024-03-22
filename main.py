@@ -76,7 +76,8 @@ def setup_trainer(model_dir):
             accelerator='gpu' if torch.cuda.is_available() else None,
             devices='auto' if torch.cuda.is_available() else None,
             callbacks=[checkpoint_callback],
-            logger=tensorboard_logger
+            logger=tensorboard_logger,
+            num_sanity_val_steps=0
         )
     return trainer
 

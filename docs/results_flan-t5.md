@@ -78,6 +78,117 @@ BLEU  https://github.com/mjpost/sacrebleu
 | BERT       | [0-1]    | High          |
 
 
+## Experiment 22/03
+
+- Epocs: 6 instead of 3 
+- Learning rate 2e-5 instead of 000.1
+(Other considerations - code optimisation)
+
+
+             Test metric                           DataLoader 0
+─────────────────────────────────────────────────────────────────────
+             avg_val_loss                       0.8367134928703308
+   bart_edited_ending_cf_avg_score              -3.270648241043091
+ bart_edited_ending_initial_avg_score           -3.400423765182495
+bart_edited_ending_original_avg_score          -1.4388474225997925
+     bart_prediction_cf_avg_score              -3.3894712924957275
+   bart_prediction_edited_avg_score            -1.6608023643493652
+  bart_prediction_initial_avg_score            -3.3260490894317627
+  bart_prediction_original_avg_score           -0.39902928471565247
+
+       bert_edited_ending_cf_f1                 0.5962096452713013
+   bert_edited_ending_cf_precision               0.5502889752388
+     bert_edited_ending_cf_recall               0.6530463099479675
+    bert_edited_ending_initial_f1               0.5914896130561829
+ bert_edited_ending_initial_precision           0.5412472486495972
+  bert_edited_ending_initial_recall             0.6544120907783508
+    bert_edited_ending_original_f1              0.8488994836807251
+bert_edited_ending_original_precision           0.8412862420082092
+  bert_edited_ending_original_recall            0.8575603365898132
+        bert_prediction_cf_f1                   0.5946604609489441
+     bert_prediction_cf_precision               0.5522016286849976
+      bert_prediction_cf_recall                 0.6466645002365112
+      bert_prediction_edited_f1                 0.8470401167869568
+   bert_prediction_edited_precision             0.8554890751838684
+    bert_prediction_edited_recall               0.8396326303482056
+      bert_prediction_initial_f1                0.5994819402694702
+  bert_prediction_initial_precision             0.550987184047699
+    bert_prediction_initial_recall              0.6595380902290344
+     bert_prediction_original_f1                0.9865993857383728
+  bert_prediction_original_precision            0.986527144908905
+   bert_prediction_original_recall              0.9867075085639954
+        bleu_edited_ending_cf                  0.20867815613746643
+      bleu_edited_ending_initial                0.1931639164686203
+     bleu_edited_ending_original               0.06363406777381897
+          bleu_prediction_cf                    15.051192283630371
+        bleu_prediction_edited                  81.10931396484375
+       bleu_prediction_initial                  10.887622833251953
+       bleu_prediction_original                       100.0
+   rouge_edited_ending_cf_rouge-1_f            0.17699365317821503
+   rouge_edited_ending_cf_rouge-1_p            0.12940001487731934
+   rouge_edited_ending_cf_rouge-1_r            0.30621516704559326
+   rouge_edited_ending_cf_rouge-2_f            0.02463381178677082
+   rouge_edited_ending_cf_rouge-2_p            0.017023704946041107
+   rouge_edited_ending_cf_rouge-2_r            0.050234466791152954
+   rouge_edited_ending_cf_rouge-l_f             0.1630040854215622
+   rouge_edited_ending_cf_rouge-l_p            0.11901543289422989
+   rouge_edited_ending_cf_rouge-l_r              0.28306844830513
+rouge_edited_ending_initial_rouge-1_f          0.15383368730545044
+rouge_edited_ending_initial_rouge-1_p          0.10822901129722595
+rouge_edited_ending_initial_rouge-1_r           0.2853497862815857
+rouge_edited_ending_initial_rouge-2_f          0.019036682322621346
+rouge_edited_ending_initial_rouge-2_p          0.012737231329083443
+rouge_edited_ending_initial_rouge-2_r          0.04126160591840744
+rouge_edited_ending_initial_rouge-l_f           0.1435905545949936
+rouge_edited_ending_initial_rouge-l_p          0.10084190964698792
+rouge_edited_ending_initial_rouge-l_r          0.26763278245925903
+rouge_edited_ending_original_rouge-1_f          0.753814697265625
+rouge_edited_ending_original_rouge-1_p          0.7405248284339905
+rouge_edited_ending_original_rouge-1_r          0.775071382522583
+rouge_edited_ending_original_rouge-2_f          0.630500316619873
+rouge_edited_ending_original_rouge-2_p          0.6156041622161865
+rouge_edited_ending_original_rouge-2_r          0.6527891755104065
+rouge_edited_ending_original_rouge-l_f          0.750571608543396
+rouge_edited_ending_original_rouge-l_p           0.73729407787323
+rouge_edited_ending_original_rouge-l_r          0.771765947341919
+    rouge_prediction_cf_rouge-1_f               0.173599973320961
+    rouge_prediction_cf_rouge-1_p              0.12840992212295532
+    rouge_prediction_cf_rouge-1_r               0.2915010154247284
+    rouge_prediction_cf_rouge-2_f              0.02406257577240467
+    rouge_prediction_cf_rouge-2_p              0.016784965991973877
+    rouge_prediction_cf_rouge-2_r              0.04786884784698486
+    rouge_prediction_cf_rouge-l_f              0.16172805428504944
+    rouge_prediction_cf_rouge-l_p              0.11944396793842316
+    rouge_prediction_cf_rouge-l_r               0.2725691497325897
+  rouge_prediction_edited_rouge-1_f             0.7532975673675537
+  rouge_prediction_edited_rouge-1_p             0.7748935222625732
+  rouge_prediction_edited_rouge-1_r             0.7396970987319946
+  rouge_prediction_edited_rouge-2_f             0.6293318271636963
+  rouge_prediction_edited_rouge-2_p             0.6511090397834778
+  rouge_prediction_edited_rouge-2_r             0.6148354411125183
+  rouge_prediction_edited_rouge-l_f             0.7500633001327515
+  rouge_prediction_edited_rouge-l_p             0.7715575098991394
+  rouge_prediction_edited_rouge-l_r             0.7365179061889648
+  rouge_prediction_initial_rouge-1_f            0.1570231020450592
+  rouge_prediction_initial_rouge-1_p           0.11191283166408539
+  rouge_prediction_initial_rouge-1_r           0.28051525354385376
+  rouge_prediction_initial_rouge-2_f            0.0192242544144392
+  rouge_prediction_initial_rouge-2_p           0.013101776130497456
+  rouge_prediction_initial_rouge-2_r           0.03918764367699623
+  rouge_prediction_initial_rouge-l_f            0.1477341204881668
+  rouge_prediction_initial_rouge-l_p           0.10514473915100098
+  rouge_prediction_initial_rouge-l_r           0.26481884717941284
+ rouge_prediction_original_rouge-1_f            0.9822210669517517
+ rouge_prediction_original_rouge-1_p            0.9830112457275391
+ rouge_prediction_original_rouge-1_r            0.9817323684692383
+ rouge_prediction_original_rouge-2_f            0.9671756029129028
+ rouge_prediction_original_rouge-2_p            0.9672459363937378
+ rouge_prediction_original_rouge-2_r            0.9673460125923157
+ rouge_prediction_original_rouge-l_f            0.9822055697441101
+ rouge_prediction_original_rouge-l_p            0.9829957485198975
+ rouge_prediction_original_rouge-l_r            0.9817168712615967
+               val_loss                         0.8367134928703308
+
 
 ## Experiment 4 
 

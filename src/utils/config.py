@@ -17,19 +17,23 @@ CONFIG = {
     "bart_score_dir": BARTSCORE_DIR,
     
     # File names
-    "train_file": "train_supervised_small_sample.json",
-    "dev_file": "dev_data_sample.json",
-    "test_file": "test_data_sample.json",
+    "train_file": "train_supervised_small.json",
+    "dev_file": "dev_data.json",
+    "test_file": "test_data.json",
     
     # Model and training configurations
     "model_name": os.getenv('MODEL_NAME', "google/flan-t5-base"),
     "batch_size": int(os.getenv('BATCH_SIZE', 4)),
     "num_workers": int(os.getenv('NUM_WORKERS', 3)),
-    "max_epochs": int(os.getenv('MAX_EPOCHS', 3)),
+    "max_epochs": int(os.getenv('MAX_EPOCHS', 6)),
     "learning_rate": float(os.getenv('LEARNING_RATE', 2e-5)),
     
+    # preprocess data parameters
+    "max_length": 512,
+
     # Text generation parameters
     "max_gen_length": 250,
+   
 
     # Evaluation metrics settings
     "eval_batch_size": 4,

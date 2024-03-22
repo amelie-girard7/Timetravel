@@ -61,8 +61,6 @@ def preprocess_data(row, tokenizer):
     """
     logger.debug("Preprocessing data row...")
     
-    max_length = CONFIG["max_gen_length"] 
-    
     try:
         # Define the separator token specific to the T5 model.
         separator_token = "</s>"
@@ -77,7 +75,7 @@ def preprocess_data(row, tokenizer):
         
         # Tokenize the input sequence with truncation to max_length and no padding here.
         tokenized_inputs = tokenizer.encode_plus(
-            input_sequence, truncation=True, return_tensors="pt", max_length=max_length
+            input_sequence, truncation=True, return_tensors="pt", max_length=CONFIG["max_length"]
         )
         
         # Join the list of edited endings into a single string
@@ -85,7 +83,7 @@ def preprocess_data(row, tokenizer):
         
         # Tokenize the output sequence (edited ending) with truncation to max_length.
         tokenized_ending = tokenizer.encode_plus(
-            edited_ending_joined, truncation=True, return_tensors="pt", max_length=max_length
+            edited_ending_joined, truncation=True, return_tensors="pt", max_length=CONFIG["max_length"]
         )
         
         # Return the tokenized inputs, labels, and original data fields for evaluation.
