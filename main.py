@@ -27,7 +27,7 @@ def setup_model(model_dir):
     Returns:
         An instance of FlanT5FineTuner configured for training.
     """
-    model = FlanT5FineTuner(CONFIG["model_name"], str(model_dir))
+    model = FlanT5FineTuner(CONFIG["model_name"], model_dir)
     return model
 
 def setup_dataloaders(model, tokenizer):
@@ -50,7 +50,7 @@ def setup_dataloaders(model, tokenizer):
     dataloaders = create_dataloaders(data_path, model.tokenizer, batch_size, num_workers)
     return dataloaders
 
-def setup_trainer(model_dir, model_timestamp):
+def setup_trainer(model_dir):
     """
     Configures the training environment with checkpoints and logging.
 
@@ -87,8 +87,8 @@ def main():
     try:
         # Timestamp for unique directory creation
         model_timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H")
-        model_dir = CONFIG["models_dir"]
-        model_dir.mkdir(parents=True, exist_ok=True)
+        model_dir = CONFIG["models_dir"] / f"model_{model_timestamp}"
+        model_dir.mkdir(parents=True, exist_ok=True) # Ensure directories exist
         
         # Setup tokenizer
         tokenizer = T5Tokenizer.from_pretrained(CONFIG["model_name"])
@@ -96,12 +96,18 @@ def main():
         # Prepare model, dataloaders, and trainer
         model = setup_model(model_dir)
         dataloaders = setup_dataloaders(model, tokenizer)
-        trainer = setup_trainer(model_dir, model_timestamp)
+        trainer = setup_trainer(model_dir)
+        
+        # Extract the keys for train, dev, and test from CONFIG and remove the file extension
+        train_key = CONFIG["train_file"].split('.')[0]  # 'train_supervised_small_sample'
+        dev_key = CONFIG["dev_file"].split('.')[0]      # 'dev_data_sample'
+        test_key = CONFIG["test_file"].split('.')[0]    # 'test_data_sample'
         
         # Start training
-        trainer.fit(model, dataloaders['train_supervised_small_sample'], dataloaders['dev_data_sample'])
+        trainer.fit(model, dataloaders[train_key], dataloaders[dev_key])
+        
         # Start testing
-        trainer.test(model, dataloaders['test_data_sample'])
+        trainer.test(model, dataloaders[test_key])
 
     except Exception as e:
         logger.exception("An unexpected error occurred during the process.")
