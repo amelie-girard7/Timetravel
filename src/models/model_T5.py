@@ -1,79 +1,98 @@
 # src/models/model_T5.py
+import csv
+import logging
+import os
 import sys
 import torch
-from src.utils.config import CONFIG
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 import pytorch_lightning as pl
 from sacrebleu.metrics import BLEU
 from rouge import Rouge
 from bert_score import BERTScorer
+from src.BARTScore_metric.bart_score import BARTScorer
+from src.utils.config import CONFIG
 
-# Add BARTScore directory to Python path
 bart_score_path = str(CONFIG["bart_score_dir"])
 if bart_score_path not in sys.path:
     sys.path.append(bart_score_path)
-    
-from src.BARTScore_metric.bart_score import BARTScorer
 
-import logging
 logger = logging.getLogger(__name__)
 
 class FlanT5FineTuner(pl.LightningModule):
     """
-    This class defines a PyTorch Lightning model for fine-tuning a Flan-T5 model.
-    It handles the forward pass, training, validation, and testing steps.
+    A PyTorch Lightning module for fine-tuning the Flan-T5 model on a specific dataset.
+    Incorporates evaluation metrics such as BLEU, ROUGE, BERTScore, and BARTScore for performance metrics.
     """
 
-    def __init__(self, model_name):
+    def __init__(self, model_name, model_dir):
         """
-        Initializes the model components, tokenizer, and metrics scorer.
+        Initializes the fine-tuner with the specified model and tokenizer, along with metric evaluators.
+
+        Args:
+            model_name (str): The name of the T5 model to be used.
+            model_dir (str): Directory path for saving model-related files.
         """
         super().__init__()
+        
+        # Loading the T5 model and tokenizer.
         self.model = T5ForConditionalGeneration.from_pretrained(model_name)
         self.tokenizer = T5Tokenizer.from_pretrained(model_name)
         
-        # Initialise sacre bleu and Rouge Bert
+         # Use the same timestamped model_dir for CSVs and model checkpoints
+        self.val_csv_file_path = model_dir / "validation_details.csv"
+        self.test_csv_file_path = model_dir / "test_details.csv"
+
+        
+        # Initializing metrics for validation.
         self.sacre_bleu = BLEU()      
         self.rouge = Rouge()
-        self.bert_scorer = BERTScorer(model_type='microsoft/deberta-xlarge-mnli', device='cuda:0', num_layers=None, batch_size=4)
-    
         
-        # Initialize BARTScorer for similarity metric evaluation
-        self.bart_scorer = BARTScorer(device='cuda:0', checkpoint='facebook/bart-large-cnn')
-        # Assuming that self.bart_scorer automatically sets the model to eval mode.
+        
+         # Updated BERTScorer and BARTScorer initialization
+        self.bert_scorer = BERTScorer(
+            model_type=CONFIG["bert_scorer_model_type"],
+            device=CONFIG["scorer_device"],
+            num_layers=None,  # Consider making this configurable if necessary
+            batch_size=CONFIG["bert_scorer_batch_size"]
+        )
+        self.bart_scorer = BARTScorer(
+            device=CONFIG["scorer_device"],
+            checkpoint=CONFIG["bart_scorer_checkpoint"]
+        )
 
-        # Initialize the list to store validation step outputs
+        # Initialize the list to store validation step outputs for aggregating results over an epoch
         self.current_val_step_outputs = []
-
-
-    
-    def forward(self, input_ids, attention_mask, labels):
+        
+        # Temporary storage for Text-generation sanity check
+        self.epoch_validation_details = []
+ 
+    def forward(self, input_ids, attention_mask, labels=None):
         """
-        Performs the forward pass of the model. It Returns the output from the T5 model,
-        which includes loss when labels are provided, and logits otherwise.
-        """
-        print("--forward pass--")
-        
-        if labels is not None:
-            print(f"Labels shape: {labels.shape}")
-        
-        # Pass the concatenated input_ids, attention_mask, and labels  to the model.
-        output = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-        
-        # If labels were provided, the model's output will include loss for training.
-        if labels is not None:
-            print("Loss from model output:", output.loss.item())
-        else:
-            print("Model output generated without calculating loss (inference mode).")
-        
-        return output
+        Performs the forward pass of the model. If labels are provided, it returns
+        the loss; otherwise, it returns logits.
 
+        Parameters:
+            input_ids (torch.Tensor): Tensor of input IDs.
+            attention_mask (torch.Tensor): Tensor representing attention masks.
+            labels (torch.Tensor, optional): Tensor of labels. If provided, the loss is returned.
+
+        Returns:
+            ModelOutput: The output from the T5 model. Includes loss if labels are provided.
+        """
+        # The model handles both inference and training based on whether labels are provided.
+        return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
 
     def training_step(self, batch, batch_idx):
-        """  
-        Defines the training logic for a single batch, where a forward pass is performed and the loss is calculated.
         """
-        print("--training_step --")    
+        Executes a single training step.
+
+        Args:
+            batch (dict): A single batch of data from the DataLoader.
+            batch_idx (int): The index of the batch in the dataset.
+
+        Returns:
+            torch.Tensor: The loss tensor from the forward pass.
+        """   
         outputs = self.forward(
             input_ids=batch['input_ids'],
             attention_mask=batch['attention_mask'],
@@ -82,103 +101,160 @@ class FlanT5FineTuner(pl.LightningModule):
         loss = outputs.loss
         self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True)
         return loss
- 
-    
+   
     def validation_step(self, batch, batch_idx):
         """
-        Performs a validation step for a single batch.
-        It calculates the loss, generates predictions, and prepares data for metric calculation.
+        Executes a validation step, generating predictions and calculating metrics.
+
+        Args:
+            batch (dict): A single batch of data from the DataLoader.
+            batch_idx (int): The index of the batch in the dataset.
         """
-        print("-- validation_step --")
         
-        # Ensure model T5 is in evaluation mode
-        # This disables dropout or batchnorm layers and is important for
-        # model evaluation to ensure consistent results
-        self.model.eval()
-           
+        # @Inigo, we don't need this with Lightning
+        #self.model.eval()
+        
         # Forward pass to compute loss and model outputs
         outputs = self.forward(
             input_ids=batch['input_ids'],
             attention_mask=batch['attention_mask'],
-            labels=batch['labels'],
+            labels=batch['labels']
         )
         val_loss = outputs.loss
         self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        print(f"Validation loss: {val_loss.item()}")
 
         # Generate text predictions from the model using the individual components
         generated_texts = self.generate_text(
             input_ids=batch['input_ids'],
-            attention_mask=batch['attention_mask'],
-            max_length=250 # Specify the desired maximum length of generated text
+            attention_mask=batch['attention_mask']
         )
         
-        # Decode the labels (ground truth edited ending) from the batch for comparison with the model's generated text.
+        # Decode the labels (ground truth edited ending) from the batch for comparison with the model's generated text
         edited_endings = batch['edited_ending']
+        
+         # Prepare data for detailed analysis or logging
+        validation_details = [{
+            'Epoch': self.current_epoch,
+            'Premise': premise,
+            'Initial': initial,
+            'Counterfactual': counterfactual,
+            'Original Ending': original_ending,
+            'Edited Ending': edited_ending,
+            'Generated Text': generated_text
+        } for premise, initial, counterfactual, original_ending, edited_ending, generated_text 
+        in zip(batch['premise'], batch['initial'], batch['counterfactual'], batch['original_ending'], batch['edited_ending'], generated_texts)]
 
-        #printing details for the first story in the batch
-        print(f"--Premise: {batch['premise'][0]}")
-        print(f"--Initial: {batch['initial'][0]}")
-        print(f"--Counterfactual: {batch['counterfactual'][0]}")
-        print(f"--Original Ending: {batch['original_ending'][0]}")
-        print(f"--Edited Ending: {edited_endings[0]}")
-        print(f"--Generated Text: {generated_texts[0]}")  
-
+        self.epoch_validation_details.extend(validation_details)
 
         # Store output information for metric calculation at the end of the epoch
         output = {
             'generated': generated_texts,
             'edited_endings': edited_endings,
-            # Add other story components for later use in metric calculations
             'premises': batch['premise'],
             'counterfactuals': batch['counterfactual'],
             'original_endings': batch['original_ending'],
             'initials': batch['initial'],
+            'premises': batch['premise']
         }
         self.current_val_step_outputs.append(output)
-        print(f"Validation step {batch_idx} completed.")
+        self.log_dict({"avg_val_loss": val_loss}, on_step=False, on_epoch=True, prog_bar=True, logger=True)  # Example of structured logging
 
-        
-    def on_validation_epoch_end(self):
+    def on_validation_epoch_end(self, test_flag=False):
         """
         Handles operations to perform at the end of each validation epoch.
         """
-        print("-- on_validation_epoch_end --")
-        self.model.train()
-        # Prepare lists to store generated texts and their corresponding references
-        all_generated_texts = []
-        all_edited_endings = []
-        all_counterfactuals = []
-        all_initials = []
-        all_original_endings = []
-
         # Aggregate texts from the outputs
+        aggregated_texts = self.aggregate_texts()
+        # Log calculated metrics
+        self.log_metrics(aggregated_texts)
+    
+        csv_file_path = self.determine_csv_path(test_flag)
+        # Check if the file exists
+        self.log_to_csv(csv_file_path, self.epoch_validation_details)
+        self.cleanup_epoch_data()
+
+    def aggregate_texts(self):
+        """
+        Aggregates texts from the current validation step outputs for metrics calculation.
+        """
+        aggregated_texts = {
+            'generated': [],
+            'edited_endings': [],
+            'counterfactuals': [],
+            'initials': [],
+            'premises': [],
+            'original_endings': []
+        }
+
         for output in self.current_val_step_outputs:
-            all_generated_texts.extend(output['generated'])
-            all_edited_endings.extend(output['edited_endings'])
-            all_counterfactuals.extend(output['counterfactuals'])
-            all_initials.extend(output['initials'])
-            all_original_endings.extend(output['original_endings'])
-            
-       
-        print("Aggregated texts for BLEU and ROUGE  and BERT similarity score calculation.")
+            for key in aggregated_texts.keys():
+                aggregated_texts[key].extend(output[key])
 
-        # Calculate and log BLEU similarity scores for various comparisons
-        self.calculate_and_log_bleu_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        return aggregated_texts
 
-        # Calculate and log ROUGE similarity scores for various comparisons
-        self.calculate_and_log_rouge_scores(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+    def log_metrics(self, aggregated_texts):
+        """
+        Logs various similarity scores based on aggregated texts.
+        """
+        # Adjust this section to correctly unpack aggregated_texts and pass to the metric functions
+        try:
+            self.calculate_and_log_bleu_scores(
+                all_generated_texts=aggregated_texts['generated'],
+                all_edited_endings=aggregated_texts['edited_endings'],
+                all_counterfactuals=aggregated_texts['counterfactuals'],
+                all_initials=aggregated_texts['initials'],
+                all_original_endings=aggregated_texts['original_endings']
+            )
+        except Exception as e:
+            print(f"Error calculating BLEU: {e}")
         
-        # Calculate and log BERT similarity scores for various comparisons 
-        self.calculate_and_log_bert_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        try:
+            self.calculate_and_log_rouge_scores(
+                all_generated_texts=aggregated_texts['generated'],
+                all_edited_endings=aggregated_texts['edited_endings'],
+                all_counterfactuals=aggregated_texts['counterfactuals'],
+                all_initials=aggregated_texts['initials'],
+                all_original_endings=aggregated_texts['original_endings']
+            )
+        except Exception as e:
+            print(f"Error calculating ROUGE: {e}")
+    
+        try:
+            self.calculate_and_log_bert_similarity(
+                all_generated_texts=aggregated_texts['generated'],
+                all_edited_endings=aggregated_texts['edited_endings'],
+                all_counterfactuals=aggregated_texts['counterfactuals'],
+                all_initials=aggregated_texts['initials'],
+                all_original_endings=aggregated_texts['original_endings']
+            )
+        except Exception as e:
+            print(f"Error calculating ROUGE: {e}")
         
-        # Calculate and log BART similarity scores
-        self.calculate_and_log_bart_similarity(all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings)
+        try:
+            self.calculate_and_log_bart_similarity(
+                all_generated_texts=aggregated_texts['generated'],
+                all_edited_endings=aggregated_texts['edited_endings'],
+                all_counterfactuals=aggregated_texts['counterfactuals'],
+                all_initials=aggregated_texts['initials'],
+                all_original_endings=aggregated_texts['original_endings']
+            )
+        except Exception as e:
+            print(f"Error calculating ROUGE: {e}")
 
-        # Clear the list of outputs for the next epoch
-        self.current_val_step_outputs = []
-        print("Validation epoch ended. Metrics logged.")
-        
+    def determine_csv_path(self, test_flag):
+        return self.test_csv_file_path if test_flag else self.val_csv_file_path
+
+    def log_to_csv(self, csv_file_path, details):
+        file_exists = os.path.isfile(csv_file_path)
+        with open(csv_file_path, 'a', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=details[0].keys())
+            if not file_exists:
+                writer.writeheader()
+            writer.writerows(details)
+
+    def cleanup_epoch_data(self):
+        self.epoch_validation_details.clear()
+        self.current_val_step_outputs.clear()
 
     def calculate_and_log_bleu_scores(self, all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings):
         """
@@ -190,7 +266,6 @@ class FlanT5FineTuner(pl.LightningModule):
         initials_refs = [[init] for init in all_initials]
         original_endings_refs = [[orig] for orig in all_original_endings]
 
-        # Calculate and log BLEU scores for generated_text vs. story components (edited_ending, cunterfactual,initial and original_endings )
         all_comparisons = [
             ('bleu_prediction_edited', all_generated_texts, edited_endings_refs),
             ('bleu_prediction_cf', all_generated_texts, counterfactuals_refs),
@@ -204,25 +279,17 @@ class FlanT5FineTuner(pl.LightningModule):
         # Calculate and log BLEU scores for each comparison
         for label, texts, references in all_comparisons:
             try:
-                # Directly calculate the BLEU score and assume it to be a float
                 bleu_result = self.sacre_bleu.corpus_score(texts, references)
-                # The bleu_result.score is already a float representing the BLEU score
-                bleu_score = bleu_result.score  # This is correct and should not cause an issue
-
-                # Log the BLEU score
+                bleu_score = bleu_result.score
                 self.log(label, bleu_score, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-                print(f"{label}: {bleu_score}")
             except Exception as e:
                 print(f"Error calculating {label}: {e}")
-
 
     def calculate_and_log_rouge_scores(self, all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings):
         """
         Calculates and logs ROUGE scores for the generated texts against various components,
         and also for edited endings against other story components.
         """
-        print("Calculating ROUGE scores...")
-        # Original comparisons for generated texts
         all_comparisons = [
             ('rouge_prediction_edited', all_generated_texts, all_edited_endings),
             ('rouge_prediction_cf', all_generated_texts, all_counterfactuals),
@@ -235,26 +302,17 @@ class FlanT5FineTuner(pl.LightningModule):
 
         for label, hypotheses, references in all_comparisons:
             rouge_scores = self.rouge.get_scores(hypotheses, references, avg=True)
-            print(f"{label}: {rouge_scores}")
-
-            # Log ROUGE scores
             for score_type in ['rouge-1', 'rouge-2', 'rouge-l']:
                 if score_type in rouge_scores:
                     self.log(f"{label}_{score_type}_f", rouge_scores[score_type]['f'], on_step=False, on_epoch=True, prog_bar=True, logger=True)
                     self.log(f"{label}_{score_type}_p", rouge_scores[score_type]['p'], on_step=False, on_epoch=True, prog_bar=True, logger=True)
                     self.log(f"{label}_{score_type}_r", rouge_scores[score_type]['r'], on_step=False, on_epoch=True, prog_bar=True, logger=True)
-                    print(f"{label}_{score_type} F1: {rouge_scores[score_type]['f']} Precision: {rouge_scores[score_type]['p']} Recall: {rouge_scores[score_type]['r']}")
-
-    
     
     def calculate_and_log_bert_similarity(self, all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings):
         """
         Calculates and logs BERT similarity scores for generated texts against various components,
         and also for edited endings against other story components.
         """
-        print("Calculating BERT similarity scores...")
-        
-        # Define the original and edited comparisons
         all_comparisons = [
             ('bert_prediction_edited', all_generated_texts, all_edited_endings),
             ('bert_prediction_cf', all_generated_texts, all_counterfactuals),
@@ -266,29 +324,20 @@ class FlanT5FineTuner(pl.LightningModule):
         ]
         # Calculate and log BERT similarity scores for each comparison
         for label, texts_a, texts_b in all_comparisons:
-            # Calculate precision, recall, and F1 scores using BERTScore
             P, R, F1 = self.bert_scorer.score(texts_a, texts_b)
-            
             # Calculate average scores for the current comparison to summarize over all instances
             avg_precision = P.mean().item()
             avg_recall = R.mean().item()
             avg_f1 = F1.mean().item()
-
-            # Log the calculated metrics for monitoring and analysis
             self.log(f'{label}_precision', avg_precision, on_step=False, on_epoch=True, prog_bar=True, logger=True)
             self.log(f'{label}_recall', avg_recall, on_step=False, on_epoch=True, prog_bar=True, logger=True)
             self.log(f'{label}_f1', avg_f1, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            print(f"{label}: Precision={avg_precision}, Recall={avg_recall}, F1={avg_f1}")
-            
-
-    
+              
     def calculate_and_log_bart_similarity(self, all_generated_texts, all_edited_endings, all_counterfactuals, all_initials, all_original_endings):
         """
         Calculates and logs BART-based similarity scores for a variety of text comparisons,
         using the BARTScorer to evaluate the similarity between different segments of texts.
         """
-        print("-- Calculating BART similarity scores --")
-
         # Define all pairs of text segments for which to calculate similarity scores
         all_comparisons = [
             ('bart_prediction_edited', all_generated_texts, all_edited_endings),
@@ -302,62 +351,44 @@ class FlanT5FineTuner(pl.LightningModule):
 
         # Iterate over each pair and calculate BARTScores
         for label, src_texts, tgt_texts in all_comparisons:
-            # Ensure src_texts is a list of texts and tgt_texts could be a list of lists (for multiple references)
             if isinstance(tgt_texts[0], list):
-                # Calculate scores with multi-reference support
                 scores = self.bart_scorer.multi_ref_score(src_texts, tgt_texts, agg='mean', batch_size=4)
             else:
-                # Calculate scores for single reference
                 scores = self.bart_scorer.score(src_texts, tgt_texts, batch_size=4)
-            
             # Calculate the average score for simplicity; you might want to log or analyze scores further
             avg_score = sum(scores) / len(scores) if scores else float('nan')
-
-            # Log the average BARTScore using whatever logging mechanism (e.g., self.log in PyTorch Lightning)
-            print(f"{label}: {avg_score}")
             self.log(f'{label}_avg_score', avg_score, on_step=False, on_epoch=True, prog_bar=True)
-
-
-            
+        
     def test_step(self, batch, batch_idx):
         """
-        Called during the testing loop to perform a forward pass with a batch from the test set, calculate the loss, and optionally generate text.
+        Called during the testing loop to perform a forward pass with a batch from the test set, 
+        calculate the loss, and optionally generate text.
         """
-    
         return self.validation_step(batch, batch_idx)
     
     def on_test_epoch_end(self):
-        return self.on_validation_epoch_end()
-
+        return self.on_validation_epoch_end(test_flag=True)
 
     def configure_optimizers(self):
         """
         Configure the optimizer for the model.
         The optimizer is responsible for updating the model's weights to minimize the loss during training.
         """
-        print("-- configure_optimizers --") 
-        
-        #lr = CONFIG.get("learning_rate", 2e-5)  # Fetch the learning rate from CONFIG with a default
-        #return torch.optim.AdamW(self.model.parameters(), lr=lr)
-        optimizer = torch.optim.AdamW(self.parameters(), lr=0.001)
-        return optimizer
+        lr = CONFIG["learning_rate"]
+        return torch.optim.AdamW(self.parameters(), lr=lr)
 
-    def generate_text(self, input_ids, attention_mask, max_length=250):
+    def generate_text(self, input_ids, attention_mask):
         """
         Generates text sequences from the provided input components using the model,
         with a customizable maximum length for the generated text.
         """
-        print("-- generate_text --")
-
-        # Use the `max_length` argument in the model's generate function to control the maximum length of the generated sequences.
         generated_ids = self.model.generate(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            max_length=max_length  # This is now an adjustable parameter.
+        input_ids=input_ids, 
+        attention_mask=attention_mask, 
+        max_length=CONFIG["max_gen_length"]
         )
 
-        # Decode the generated token IDs back into human-readable text,
-        # skipping special tokens to improve readability.
+        #@Inigo do you think that skipping the special token needs to be set to default due to our input?
         generated_texts = [
             self.tokenizer.decode(generated_id, skip_special_tokens=True, clean_up_tokenization_spaces=True)
             for generated_id in generated_ids
@@ -365,3 +396,4 @@ class FlanT5FineTuner(pl.LightningModule):
 
         return generated_texts
 
+    

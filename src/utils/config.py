@@ -10,18 +10,42 @@ BARTSCORE_DIR = ROOT_DIR / "src" / "BARTScore_metric"
 # Configuration parameters
 CONFIG = {
     # Paths relative to the root directory
-    "root_dir": ROOT_DIR,  # Adding root_dir here
+    "root_dir": ROOT_DIR, 
     "data_dir": ROOT_DIR / "data",
     "models_dir": ROOT_DIR / "models",
     "logs_dir": ROOT_DIR / "logs",
-    "bart_score_dir": BARTSCORE_DIR,  # Add the BARTScore directory
+    "bart_score_dir": BARTSCORE_DIR,
+    
+    # File names
+    "train_file": "train_supervised_small.json",
+    "dev_file": "dev_data.json",
+    "test_file": "test_data.json",
     
     # Model and training configurations
-    "model_name": os.getenv('MODEL_NAME', "google/flan-t5-base"),  # Default to "google/flan-t5-base" if not set
-    "batch_size": int(os.getenv('BATCH_SIZE', 4)),  # Convert to int as environment variables are strings
+    "model_name": os.getenv('MODEL_NAME', "google/flan-t5-base"),
+    "batch_size": int(os.getenv('BATCH_SIZE', 4)),
     "num_workers": int(os.getenv('NUM_WORKERS', 3)),
-    "max_epochs": int(os.getenv('MAX_EPOCHS', 3)),
-    "learning_rate": 2e-5,
+    "max_epochs": int(os.getenv('MAX_EPOCHS', 6)),
+    "learning_rate": float(os.getenv('LEARNING_RATE', 2e-5)),
+    
+    # preprocess data parameters
+    "max_length": 512,
+
+    # Text generation parameters
+    "max_gen_length": 250,
+   
+
+    # Evaluation metrics settings
+    "eval_batch_size": 4,
+    
+    # BERTScorer settings
+    "bert_scorer_model_type": "microsoft/deberta-xlarge-mnli",
+    "scorer_device": "cuda:0",
+    "bert_scorer_batch_size": 4,
+
+    # BARTScorer settings
+    "bart_scorer_checkpoint": "facebook/bart-large-cnn",
+
 }
 
 # Optionally, validate or create the directories
@@ -29,4 +53,4 @@ for path_key in ['data_dir', 'models_dir', 'logs_dir']:
     path = CONFIG[path_key]
     if not path.exists():
         print(f"Creating directory: {path}")
-        path.mkdir(parents=True, exist_ok=True)  # Create the directory if it doesn't exist
+        path.mkdir(parents=True, exist_ok=True) 
