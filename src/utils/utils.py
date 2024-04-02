@@ -2,6 +2,8 @@
 
 import json
 import logging
+import nltk
+from nltk.corpus import wordnet as wn
 import torch
 import torch.nn.utils.rnn
 from src.utils.config import CONFIG
@@ -45,6 +47,7 @@ def load_first_line_from_json(file_path):
     except Exception as e:
         logger.error(f"Error reading from {file_path}: {e}")
         raise IOError(f"Error reading from {file_path}: {e}")
+
 
 def preprocess_data(row, tokenizer):
     """
