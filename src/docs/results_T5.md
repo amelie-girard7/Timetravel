@@ -78,7 +78,7 @@ To create a comprehensive table including the column for interpretation as you r
 
 ## Enhanced Strategy for Adapting Story Endings to Counterfactual Scenarios
 
-Tackling the issue of the model duplicating the original ending instead of adjusting it to suit the counterfactual scenario with minimal alterations, this approach aims to enhance the model's ability to modify story endings based on counterfactual situations. By thorough preprocessing, careful modification of inputs, specific weighting of tokens, and the use of an adaptable loss function, the model is equipped to grasp the subtleties present in the training data, leading to the production of story endings that are contextually consistent and conform to the outlined counterfactual scenarios with minimum changes to the original endings.
+Tackling the prediction issue of the model duplicating the original ending instead of adjusting the original ending to suit the counterfactual scenario, this approach aims to enhance the model's ability to modify story endings based on counterfactual situations. By thorough preprocessing, careful modification of inputs, specific weighting of tokens, and the use of an adaptable loss function, the model is equipped to grasp the subtleties present in the training data, leading to the production of story endings that are contextually consistent and conform to the outlined counterfactual scenarios with minimum changes to the original endings.
 
 ### 1. Dataset Manipulation: Advanced NLP Techniques for Precise Difference Marking
 
@@ -86,43 +86,27 @@ Tackling the issue of the model duplicating the original ending instead of adjus
 
 #### Preprocessing Steps:
 - **Token-level Difference Identification**: Utilize `nltk` and consider integrating `spaCy` for a more nuanced comparison of original and edited endings at the token level. Mark the identified differences with special tokens or flags, aiding model recognition.
-  
-- **Dataset Augmentation**: Enrich the dataset with these marked differences as separate entries to enhance model learning from differential patterns.
 
-#### Experiments:
-
-- **Marking the Edited Ending (Experiment a)**: By highlighting the edited alterations, this method simplifies the learning curve by making the alteration patterns more evident to the model.
-
-/data/agirard/Projects/Timetravel/data/transformed/a-marking_edited_endings.py
-
-  
-- **Refinement of Difference Marking (Experiment e)**: Remove- `spaCy` for a deeper semantic analysis to identify not only synonyms but semantically similar phrases. Use NLTK library only
+- **Marking the Edited Ending (Experiment a)**: By highlighting the edited alterations, this method simplifies the learning curve by making the alteration patterns more evident to the model. The words that are in the edited endings but not in the original endings are marked as <diff>word</diff>
 
 
 ### 2. Model Input Modification to Explicitly Highlight Differences
 
 **Modified Input Structure Example**:
 ```python
- input_sequence = (
-            f"Premise: {row['premise']}{separator_token} "
-            f"Initial: {row['initial']}{separator_token} "
-            f"Original Ending: {row['original_ending']}{separator_token} "
-            f"Counterfactual: {row['counterfactual']}{separator_token} "
-            f"Differences: {differences_cleaned}"
+ # Construct the input sequence with all components separated by the T5 eos token
+        input_sequence = (
+            f"{row['premise']}"
+            f"{row['initial']}"
+            f"{row['original_ending']}{separator_token}"
+            f"{row['premise']}{row['counterfactual']}{differences_cleaned}"
         )
 ```
-Utilize special token`</s>` to demarcate the edited sections within the output label (edited ending), ensuring the model is acutely aware of the segments of the input demanding alterations when generating the precition .
 
-
-Key Adjustments:
-
-Differences Extraction: The function now iterates over each sentence in the edited_ending array, extracts tokens marked with <s>, and concatenates them to form the Differences section. This approach assumes that the presence of <s> in a token signifies its importance or alteration in the context of the counterfactual scenario.
-Removal of <s> Tags: Before using the differences for model input, the <s> tags are removed to clean up the tokens. Similarly, these tags are removed from the edited ending sentences when joining them into a single string for the output sequence.
-These adjustments ensure that the preprocess_data function now properly handles the array structure of edited_ending, extracting and incorporating marked differences into the model input, thus aligning with the enhanced strategy for story adaptation to counterfactual scenarios.
 
 ### 3. Custom Token Weighting within the Model's Architecture
 
-**Approach**: Implement a nuanced weighting system within the model's architecture, specifically targeting tokens that signify differences. This could involve adjusting the embedding layer or manipulating weights during the model's forward pass to elevate the importance of accurately predicting these differential tokens.
+
 
 ### 4. Loss Function Adjustment for Focused Learning on Counterfactual Adaptations
 
