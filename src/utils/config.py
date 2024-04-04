@@ -20,10 +20,10 @@ CONFIG = {
     #"train_file": "train_supervised_small.json",
     #"dev_file": "dev_data.json",
     #"test_file": "test_data.json",
-    
-    "train_file": "train_supervised_small_marked_original.json",
-    "dev_file": "dev_data_marked_original.json",
-    "test_file": "test_data_marked_original.json",
+
+    "train_file": "train_supervised_small_sample.json",
+    "dev_file": "dev_data_sample.json",
+    "test_file": "test_data_sample.json",
     
     # Model and training configurations
     "model_name": os.getenv('MODEL_NAME', "google/flan-t5-base"),
