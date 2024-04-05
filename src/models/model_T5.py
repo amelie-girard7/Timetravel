@@ -24,7 +24,6 @@ class FlanT5FineTuner(pl.LightningModule):
     A PyTorch Lightning module for fine-tuning the Flan-T5 model on a specific dataset.
     Incorporates evaluation metrics such as BLEU, ROUGE, BERTScore, and BARTScore for performance metrics.
     """
-
     def __init__(self, model_name, model_dir):
         """
         Initializes the fine-tuner with the specified model and tokenizer, along with metric evaluators.
@@ -83,33 +82,48 @@ class FlanT5FineTuner(pl.LightningModule):
         # The model handles both inference and training based on whether labels are provided.
         return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
     
-    def custom_loss(self, outputs, targets, differential_weights):
+    def custom_loss(self,outputs, targets, differential_weights):
         """
         Custom loss function that applies differential weights to the calculation.
+        
+        This function modifies the standard cross-entropy loss by applying a different
+        weight to each token based on its importance, which is determined by the differential_weights tensor.
+        This is particularly useful for focusing the model's learning on specific parts of the input data.
+        
+        Returns:
+            torch.Tensor: A single scalar tensor representing the mean weighted loss across all inputs in the batch.
         """
-        # Flatten the logits and targets for loss calculation
-        logits_flat = outputs.view(-1, outputs.size(-1))  # [batch_size * sequence_length, vocab_size]
-        targets_flat = targets.view(-1)  # [batch_size * sequence_length]
-
+        # Flatten all tensors to align shapes for element-wise operations
+        logits_flat = outputs.view(-1, outputs.size(-1))  # Reshape to [batch_size * seq_length, vocab_size]
+        targets_flat = targets.view(-1)  # Flatten to [batch_size * seq_length]
         # Flatten differential weights to match the sequence tokens
-        differential_weights_flat = differential_weights.view(-1)  # Flatten to [batch_size * sequence_length]
+        differential_weights_flat = differential_weights.view(-1)  # Flatten to [batch_size * seq_length]
+        # Print shapes for debugging
+        print("logits_flat shape:", logits_flat.shape)
+        print("targets_flat shape:", targets_flat.shape)
+        print("differential_weights_flat shape:", differential_weights_flat.shape)
 
-        # Ensure that the number of differential weights matches the number of tokens in the targets
-        assert logits_flat.size(0) // logits_flat.size(-1) == differential_weights_flat.size(0), "Mismatch in size between flattened logits and differential weights."
-
-        # Compute the cross-entropy loss without reduction to obtain a loss value per token
+        
+        # It's critical to ensure the shapes match up for logits, targets, and differential weights.
+        # This check helps avoid potential errors during training.
+        if logits_flat.size(0) != differential_weights_flat.size(0):
+           raise ValueError("The size of logits and differential weights does not match, indicating a potential issue in preprocessing or batch assembly.")
+        
+        # Compute the standard cross-entropy loss without reduction to get a loss value per token.
         loss_per_token = F.cross_entropy(logits_flat, targets_flat, reduction='none')
+        
+        # Apply the differential weights to each token's loss.
+        weighted_loss_per_token = loss_per_token * differential_weights_flat
 
-        # Reshape differential_weights_flat to match the loss_per_token shape for element-wise multiplication
-        differential_weights_flat_expanded = differential_weights_flat.unsqueeze(1).expand(-1, logits_flat.size(-1))
+         # Print sample losses for debugging
+        print("Sample loss_per_token:", loss_per_token[:10])  # Print the first 10 values
+        print("Sample weighted_loss_per_token:", weighted_loss_per_token[:10])  # Print the first 10 values
 
-        # Element-wise multiply the loss by the expanded differential weights
-        weighted_loss = loss_per_token * differential_weights_flat_expanded
-        mean_weighted_loss = weighted_loss.mean()
-
+        
+        # Calculate the mean of the weighted losses to get a single scalar representing the batch's loss.
+        mean_weighted_loss = weighted_loss_per_token.mean()
+        
         return mean_weighted_loss
-
-
 
     def training_step(self, batch, batch_idx):
         """
