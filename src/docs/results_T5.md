@@ -80,48 +80,36 @@ To create a comprehensive table including the column for interpretation as you r
 
 Tackling the prediction issue of the model duplicating the original ending instead of adjusting the original ending to suit the counterfactual scenario, this approach aims to enhance the model's ability to modify story endings based on counterfactual situations. By thorough preprocessing, careful modification of inputs, specific weighting of tokens, and the use of an adaptable loss function, the model is equipped to grasp the subtleties present in the training data, leading to the production of story endings that are contextually consistent and conform to the outlined counterfactual scenarios with minimum changes to the original endings.
 
-### 1. Dataset Manipulation: Advanced NLP Techniques for Precise Difference Marking
+### Methodology
 
-**Objective**: Improve the model's ability to recognize and adapt to differences between original and edited story endings by using advanced NLP techniques.
+#### 1. Dataset Preparation: Highlighting Narrative Divergences
 
-#### Preprocessing Steps:
-- **Token-level Difference Identification**: Utilize `nltk` and consider integrating `spaCy` for a more nuanced comparison of original and edited endings at the token level. Mark the identified differences with special tokens or flags, aiding model recognition.
+**Goal**: Enhance the model's ability to discern and generate distinctions between original and edited endings.
 
-- **Marking the Edited Ending (Experiment a)**: By highlighting the edited alterations, this method simplifies the learning curve by making the alteration patterns more evident to the model. The words that are in the edited endings but not in the original endings are marked as <diff>word</diff>
+**Preprocessing Steps**:
+- **Token-level Difference Detection**: Employing `nltk` and `spaCy` to meticulously compare the original and edited story endings on a token level. Differences will be marked with specific tokens or flags to assist the model in identifying and understanding these variances.
+- **Enhanced Difference Marking**: In the edited endings, words not present in the original endings are encapsulated within `<diff>` tags, making the modification patterns explicitly clear to the model and simplifying its learning process.
+
+#### 2. Input Structure Refinement to Accentuate Differences
+
+**Modified Input Example**:
+A structured input sequence is constructed, incorporating all narrative components with a separator token to demarcate distinct sections. This approach aims to provide a clear delineation of the story's progression, including the counterfactual adjustments. The different words are added as input to the model.
+
+#### 3. Differential Token Weighting in the Model Architecture
+
+Strategically modify the model to apply variable weights to tokens, emphasizing those marked as differences. This tailored weighting scheme is designed to refine the model's focus on accurately capturing and generating the counterfactual modifications within the story endings.
+
+#### 4. Tailored Loss Function for Enhanced Counterfactual Learning
+
+**Custom Loss Function Implementation**:
+A specialized loss function is devised to apply different weights to errors, depending on whether they occur in marked segments. This differentiation aims to incentivize the model to more accurately adapt story endings in alignment with the counterfactual scenarios presented, thereby prioritizing the narrative integrity of the modified conclusions.
+
+#### 5. Focused Training Strategy on Counterfactual Adaptations
+
+The training regimen is structured to prioritize accuracy in counterfactual modifications. Inputs are crafted to clearly signal the required narrative changes, and the custom loss function is utilized to guide error backpropagation. This approach ensures the model not only recognizes the necessary adjustments but is also adept at executing these alterations with a high degree of precision.
 
 
-### 2. Model Input Modification to Explicitly Highlight Differences
-
-**Modified Input Structure Example**:
-```python
- # Construct the input sequence with all components separated by the T5 eos token
-        input_sequence = (
-            f"{row['premise']}"
-            f"{row['initial']}"
-            f"{row['original_ending']}{separator_token}"
-            f"{row['premise']}{row['counterfactual']}{differences_cleaned}"
-        )
-```
-
-
-### 3. Custom Token Weighting within the Model's Architecture
-
-
-
-### 4. Loss Function Adjustment for Focused Learning on Counterfactual Adaptations
-
-**Custom Loss Function**:
-```python
-def custom_loss(output, target, diff_weights, non_diff_weights):
-    # Apply differential weighting to the loss calculation to prioritize accuracy in marked segments
-    loss = ...  # Implement logic for calculating loss, differentiating between marked and unmarked tokens
-    return loss
-```
-Develop a loss function that differentially applies weights to errors based on whether they occur in marked segments, encouraging the model to focus on adapting the ending accurately.
-
-### 5. Training Procedure Emphasizing Counterfactual Modifications
-
-During training, provide the model with inputs that clearly indicate required narrative changes. Utilize the custom loss function to backpropagate errors, with an emphasis on learning counterfactual modifications accurately, ensuring the model not only recognizes but prioritizes the segments that need altering.
+This comprehensive methodology is poised to significantly improve the T5 model's proficiency in adapting story endings to reflect hypothetical scenarios, marking a substantive advancement in narrative understanding and generation capabilities.
 
 
 

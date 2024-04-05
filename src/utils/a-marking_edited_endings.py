@@ -31,7 +31,7 @@ def mark_differences_in_edited(original_ending, edited_endings):
         marked_sentence = []
         for word in sentence.split():
             if word not in original_words and not any(are_synonyms_nltk(word, orig_word) or are_synonyms_spacy(word, orig_word) for orig_word in original_words):
-                marked_sentence.append(f"<s>{word}</s>")  # Mark words not appearing in original_ending and not considered similar
+                marked_sentence.append(f"<diff>{word}</diff>")  # Mark words not appearing in original_ending and not considered similar
             else:
                 marked_sentence.append(word)
         marked_edited_endings.append(' '.join(marked_sentence))
