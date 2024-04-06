@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import torch
+import torch.nn.functional as F
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 import pytorch_lightning as pl
 from sacrebleu.metrics import BLEU
@@ -23,7 +24,6 @@ class FlanT5FineTuner(pl.LightningModule):
     A PyTorch Lightning module for fine-tuning the Flan-T5 model on a specific dataset.
     Incorporates evaluation metrics such as BLEU, ROUGE, BERTScore, and BARTScore for performance metrics.
     """
-
     def __init__(self, model_name, model_dir):
         """
         Initializes the fine-tuner with the specified model and tokenizer, along with metric evaluators.
@@ -81,25 +81,88 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         # The model handles both inference and training based on whether labels are provided.
         return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+    
+    def custom_loss(self,outputs, targets, differential_weights):
+        """
+        Custom loss function that applies differential weights to the calculation.
+        
+        This function modifies the standard cross-entropy loss by applying a different
+        weight to each token based on its importance, which is determined by the differential_weights tensor.
+        This is particularly useful for focusing the model's learning on specific parts of the input data.
+        
+        Returns:
+            torch.Tensor: A single scalar tensor representing the mean weighted loss across all inputs in the batch.
+        """
+        # Flatten all tensors to align shapes for element-wise operations
+        logits_flat = outputs.view(-1, outputs.size(-1))  # Reshape to [batch_size * seq_length, vocab_size]
+        targets_flat = targets.view(-1)  # Flatten to [batch_size * seq_length]
+        # Flatten differential weights to match the sequence tokens
+        differential_weights_flat = differential_weights.view(-1)  # Flatten to [batch_size * seq_length]
+        # Print shapes for debugging
+        print("logits_flat shape:", logits_flat.shape)
+        print("targets_flat shape:", targets_flat.shape)
+        print("differential_weights_flat shape:", differential_weights_flat.shape)
+
+        
+        # It's critical to ensure the shapes match up for logits, targets, and differential weights.
+        # This check helps avoid potential errors during training.
+        if logits_flat.size(0) != differential_weights_flat.size(0):
+           raise ValueError("The size of logits and differential weights does not match, indicating a potential issue in preprocessing or batch assembly.")
+        
+        # Compute the standard cross-entropy loss without reduction to get a loss value per token.
+        loss_per_token = F.cross_entropy(logits_flat, targets_flat, reduction='none')
+        
+        # Apply the differential weights to each token's loss.
+        weighted_loss_per_token = loss_per_token * differential_weights_flat
+
+         # Print sample losses for debugging
+        print("Sample loss_per_token:", loss_per_token[:10])  # Print the first 10 values
+        print("Sample weighted_loss_per_token:", weighted_loss_per_token[:10])  # Print the first 10 values
+
+        
+        # Calculate the mean of the weighted losses to get a single scalar representing the batch's loss.
+        mean_weighted_loss = weighted_loss_per_token.mean()
+        
+        return mean_weighted_loss
 
     def training_step(self, batch, batch_idx):
         """
-        Executes a single training step.
+        Executes a training step using differential weights for the loss calculation.
+        
+        This method processes a single batch of data, performing a forward pass through
+        the model and calculating the loss using a custom loss function. This custom loss
+        function applies differential weights to each token in the input sequence, allowing
+        the model to focus more on certain tokens that are deemed more important according
+        to the differential_weights tensor provided in the batch.
+        
+        The differential weights are applied directly within the custom loss function to
+        modify the contribution of each token's loss to the overall loss value. This approach
+        can help in directing the model's attention to critical tokens, improving learning
+        efficiency and model performance on specific tasks.
 
         Args:
-            batch (dict): A single batch of data from the DataLoader.
-            batch_idx (int): The index of the batch in the dataset.
+            batch (dict): Contains the input_ids, attention_mask, labels, and differential_weights for the batch.
+            batch_idx (int): The index of the current batch within the epoch.
 
         Returns:
-            torch.Tensor: The loss tensor from the forward pass.
-        """   
+            torch.Tensor: The loss value calculated using the custom loss function.
+        """ 
+        
+        # Perform a forward pass through the model to get the outputs
         outputs = self.forward(
             input_ids=batch['input_ids'],
             attention_mask=batch['attention_mask'],
             labels=batch['labels'],
         )
-        loss = outputs.loss
-        self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True)
+        # Here, we diverge from using the default loss provided by outputs.loss.
+        # Instead, we calculate the loss using our custom loss function, which considers differential weights.
+        # This enables more focused learning on parts of the data that are highlighted by these weights.
+        loss = self.custom_loss(outputs.logits, batch['labels'], batch['differential_weights'])
+
+        # Log the custom calculated loss for monitoring. Logging it as 'train_loss' allows tracking within the Lightning framework.
+        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+
+       # Return the loss for backpropagation.
         return loss
    
     def validation_step(self, batch, batch_idx):

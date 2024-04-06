@@ -77,7 +77,7 @@ def setup_trainer(model_dir):
             devices='auto' if torch.cuda.is_available() else None,
             callbacks=[checkpoint_callback],
             logger=tensorboard_logger,
-            num_sanity_val_steps=0
+            #num_sanity_val_steps=0
         )
     return trainer
 

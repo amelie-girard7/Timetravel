@@ -29,9 +29,10 @@ class CustomJSONDataset(Dataset):
         
         self.tokenizer = tokenizer # Store the tokenizer for later use in preprocessing.
 
-        # Preprocess the data using the provided tokenizer.
-        # Applying preprocessing row-wise and expanding the result to columns for easier access.
-        self.processed_data = data.apply(lambda row: preprocess_data(row, tokenizer), axis=1, result_type='expand')
+        # Preprocess the data using the provided tokenizer and calculate differential weights
+        # Applying preprocessing row-wise and expanding the result to columns for easier access
+        self.processed_data = data.apply(lambda row: preprocess_data(row,self.tokenizer), axis=1, result_type='expand')
+       
 
     def __len__(self):
         """Returns the total number of items in the dataset."""
