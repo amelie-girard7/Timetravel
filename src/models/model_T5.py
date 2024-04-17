@@ -5,13 +5,14 @@ import os
 import sys
 import torch
 import torch.nn.functional as F
-from transformers import T5ForConditionalGeneration, T5Tokenizer
+from transformers import T5ForConditionalGeneration, T5Config, T5Tokenizer
 import pytorch_lightning as pl
 from sacrebleu.metrics import BLEU
 from rouge import Rouge
 from bert_score import BERTScorer
 from src.BARTScore_metric.bart_score import BARTScorer
 from src.utils.config import CONFIG
+from src.utils.visualization import visualize_attention
 
 bart_score_path = str(CONFIG["bart_score_dir"])
 if bart_score_path not in sys.path:
@@ -33,9 +34,13 @@ class FlanT5FineTuner(pl.LightningModule):
             model_dir (str): Directory path for saving model-related files.
         """
         super().__init__()
-        
+
+        # Configure the model with output_attentions directly within the Lightning module
+        config = T5Config.from_pretrained(model_name, output_attentions=CONFIG["output_attentions"])
+        #config = T5Config.from_pretrained(model_name, output_attentions="True")
+
         # Loading the T5 model and tokenizer.
-        self.model = T5ForConditionalGeneration.from_pretrained(model_name)
+        self.model = T5ForConditionalGeneration.from_pretrained(model_name, config=config)
         self.tokenizer = T5Tokenizer.from_pretrained(model_name)
         
          # Use the same timestamped model_dir for CSVs and model checkpoints
@@ -80,7 +85,8 @@ class FlanT5FineTuner(pl.LightningModule):
             ModelOutput: The output from the T5 model. Includes loss if labels are provided.
         """
         # The model handles both inference and training based on whether labels are provided.
-        return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+        #return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+        return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels, output_attentions=True)
     
     def custom_loss(self,outputs, targets, differential_weights):
         """
@@ -127,25 +133,21 @@ class FlanT5FineTuner(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         """
-        Executes a training step using differential weights for the loss calculation.
-        
-        This method processes a single batch of data, performing a forward pass through
-        the model and calculating the loss using a custom loss function. This custom loss
-        function applies differential weights to each token in the input sequence, allowing
-        the model to focus more on certain tokens that are deemed more important according
-        to the differential_weights tensor provided in the batch.
-        
-        The differential weights are applied directly within the custom loss function to
-        modify the contribution of each token's loss to the overall loss value. This approach
-        can help in directing the model's attention to critical tokens, improving learning
-        efficiency and model performance on specific tasks.
+            Executes a training step using either differential weights for the loss calculation
+            if configured, or the default loss from the model.
 
-        Args:
-            batch (dict): Contains the input_ids, attention_mask, labels, and differential_weights for the batch.
-            batch_idx (int): The index of the current batch within the epoch.
+            This method processes a single batch of data, performing a forward pass through
+            the model and calculating the loss either using a custom loss function or the default one.
+            The custom loss function applies differential weights to each token in the input sequence,
+            allowing the model to focus more on certain tokens that are deemed more important according
+            to the differential_weights tensor provided in the batch.
 
-        Returns:
-            torch.Tensor: The loss value calculated using the custom loss function.
+            Args:
+                batch (dict): Contains the input_ids, attention_mask, labels, and possibly differential_weights for the batch.
+                batch_idx (int): The index of the current batch within the epoch.
+
+            Returns:
+                torch.Tensor: The loss value calculated using the appropriate loss function.
         """ 
         
         # Perform a forward pass through the model to get the outputs
@@ -154,12 +156,16 @@ class FlanT5FineTuner(pl.LightningModule):
             attention_mask=batch['attention_mask'],
             labels=batch['labels'],
         )
-        # Here, we diverge from using the default loss provided by outputs.loss.
-        # Instead, we calculate the loss using our custom loss function, which considers differential weights.
-        # This enables more focused learning on parts of the data that are highlighted by these weights.
-        loss = self.custom_loss(outputs.logits, batch['labels'], batch['differential_weights'])
+        
+        # Check the 'use_custom_loss' config and whether 'differential_weights' is in the batch
+        if CONFIG['use_custom_loss'] and 'differential_weights' in batch:
+            # Calculate the loss using the custom loss function, which utilizes differential weights
+            loss = self.custom_loss(outputs.logits, batch['labels'], batch['differential_weights'])
+        else:
+            # Use the default loss provided by the model outputs
+            loss = outputs.loss
 
-        # Log the custom calculated loss for monitoring. Logging it as 'train_loss' allows tracking within the Lightning framework.
+            # Log the custom calculated loss for monitoring. Logging it as 'train_loss' allows tracking within the Lightning framework.
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
        # Return the loss for backpropagation.
@@ -173,10 +179,6 @@ class FlanT5FineTuner(pl.LightningModule):
             batch (dict): A single batch of data from the DataLoader.
             batch_idx (int): The index of the batch in the dataset.
         """
-        
-        # @Inigo, we don't need this with Lightning
-        #self.model.eval()
-        
         # Forward pass to compute loss and model outputs
         outputs = self.forward(
             input_ids=batch['input_ids'],
@@ -184,7 +186,19 @@ class FlanT5FineTuner(pl.LightningModule):
             labels=batch['labels']
         )
         val_loss = outputs.loss
+        # attentions = outputs.attentions if CONFIG["output_attentions"] and CONFIG["log_attentions"] else None
+
+        # Debugging: Check if attentions are in the outputs
+        if 'attentions' in outputs:
+            attentions = outputs.attentions
+            print("Attentions are available.")
+        else:
+            print("Attentions are not available.")
+            attentions = None
+
+        # Log val_loss and optionally log whether attentions were processed
         self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log('attentions_logged', float(attentions is not None), on_step=False, on_epoch=True)
 
         # Generate text predictions from the model using the individual components
         generated_texts = self.generate_text(
@@ -195,7 +209,8 @@ class FlanT5FineTuner(pl.LightningModule):
         # Decode the labels (ground truth edited ending) from the batch for comparison with the model's generated text
         edited_endings = batch['edited_ending']
         
-         # Prepare data for detailed analysis or logging
+        # Prepare data for detailed analysis or logging
+        # Prepare data for detailed analysis or logging
         validation_details = [{
             'Epoch': self.current_epoch,
             'Premise': premise,
@@ -203,9 +218,10 @@ class FlanT5FineTuner(pl.LightningModule):
             'Counterfactual': counterfactual,
             'Original Ending': original_ending,
             'Edited Ending': edited_ending,
-            'Generated Text': generated_text
-        } for premise, initial, counterfactual, original_ending, edited_ending, generated_text 
-        in zip(batch['premise'], batch['initial'], batch['counterfactual'], batch['original_ending'], batch['edited_ending'], generated_texts)]
+            'Generated Text': generated_text,
+            'Attention Weights': attention if CONFIG['log_attentions'] else "Not logged"
+        } for premise, initial, counterfactual, original_ending, edited_ending, generated_text, attention
+        in zip(batch['premise'], batch['initial'], batch['counterfactual'], batch['original_ending'], batch['edited_ending'], generated_texts, (attentions if attentions else []))]
 
         self.epoch_validation_details.extend(validation_details)
 
@@ -217,7 +233,8 @@ class FlanT5FineTuner(pl.LightningModule):
             'counterfactuals': batch['counterfactual'],
             'original_endings': batch['original_ending'],
             'initials': batch['initial'],
-            'premises': batch['premise']
+            'premises': batch['premise'],
+            'attentions': attentions  # Only store if attentions are being logged
         }
         self.current_val_step_outputs.append(output)
         self.log_dict({"avg_val_loss": val_loss}, on_step=False, on_epoch=True, prog_bar=True, logger=True)  # Example of structured logging
@@ -226,14 +243,27 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         Handles operations to perform at the end of each validation epoch.
         """
-        # Aggregate texts from the outputs
+        # Aggregate texts from the outputs for metric calculation
         aggregated_texts = self.aggregate_texts()
-        # Log calculated metrics
         self.log_metrics(aggregated_texts)
-    
+
+        # Visualize attentions if any outputs were stored during validation
+        if CONFIG['log_attentions'] and self.current_val_step_outputs:
+            for output in self.current_val_step_outputs:
+                if output['attentions'] is not None:
+                    attentions = output['attentions']
+                    input_ids = output['input_ids'][0]  # Assume visualizing the first example
+                    tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
+                    visualize_attention(attentions, tokens, layer_num=0, head_num=0)  # Example: first layer and head  
+
+        # Handle CSV logging
         csv_file_path = self.determine_csv_path(test_flag)
-        # Check if the file exists
-        self.log_to_csv(csv_file_path, self.epoch_validation_details)
+        if self.epoch_validation_details:  # Check if there are details to log
+            self.log_to_csv(csv_file_path, self.epoch_validation_details)
+        else:
+            logger.info("No validation details available for logging.")
+
+        # Clean up stored data from the current validation epoch
         self.cleanup_epoch_data()
 
     def aggregate_texts(self):
@@ -458,5 +488,3 @@ class FlanT5FineTuner(pl.LightningModule):
         ]
 
         return generated_texts
-
-    
