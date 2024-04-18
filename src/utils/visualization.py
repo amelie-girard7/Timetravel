@@ -3,25 +3,26 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def visualize_attention(attentions, tokens, layer_num=0, head_num=0, figsize=(10, 8)):
+def visualize_attention(attentions, tokens, layer_num=0, head_num=0, figsize=(10, 8), example_index=0):
     """
-    Visualizes attention weights for a given layer and head.
-
-    Args:
-        attentions: The list of attention tensors from the model. Assumes attentions are already detached and moved to CPU.
-        tokens: List of tokens corresponding to the attention weights.
-        layer_num: Layer number to visualize.
-        head_num: Head number to visualize.
-        figsize: Size of the figure.
+    Visualizes attention weights for a given layer and head for a specific example index.
+    
+    Parameters:
+        attentions (tuple of tensors): The attention tensors from the model. Structure is typically
+                                       [num_layers, num_heads, seq_len, seq_len].
+        tokens (list of str): List of tokens corresponding to input IDs used for x and y labels.
+        layer_num (int): The layer number of the attention heads to visualize.
+        head_num (int): The head number within the specified layer to visualize.
+        figsize (tuple): The figure size for the plot.
+        example_index (int): Index of the example in the batch for which to visualize attentions.
     """
-    # Extract the specific layer and head's attention
-    # Note: attentions[layer_num] should be of shape [batch_size, num_heads, seq_length, seq_length]
-    attention = attentions[layer_num][head_num].squeeze(0)  # Remove batch dimension if present
+    # Select the specific layer and head
+    attention = attentions[layer_num][head_num][example_index].detach().cpu().numpy()
 
     # Create a heatmap
     plt.figure(figsize=figsize)
     sns.heatmap(attention, annot=False, cmap='viridis', xticklabels=tokens, yticklabels=tokens)
-    plt.title(f'Layer {layer_num} Head {head_num} Attention Weights')
-    plt.xlabel('Tokens in sequence')
-    plt.ylabel('Tokens in sequence')
+    plt.title(f'Attention Map - Layer {layer_num}, Head {head_num}, Example {example_index}')
+    plt.xlabel('Token from sequence')
+    plt.ylabel('Token to sequence')
     plt.show()

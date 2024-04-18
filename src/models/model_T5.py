@@ -28,16 +28,15 @@ class FlanT5FineTuner(pl.LightningModule):
     def __init__(self, model_name, model_dir):
         """
         Initializes the fine-tuner with the specified model and tokenizer, along with metric evaluators.
-
-        Args:
-            model_name (str): The name of the T5 model to be used.
-            model_dir (str): Directory path for saving model-related files.
         """
         super().__init__()
 
-        # Configure the model with output_attentions directly within the Lightning module
+        # Load the configuration for the model with output_attentions enabled
         config = T5Config.from_pretrained(model_name, output_attentions=CONFIG["output_attentions"])
         #config = T5Config.from_pretrained(model_name, output_attentions="True")
+
+        # Debugging: Print the configuration to verify output_attentions is set to True
+        print("T5 Config", config)
 
         # Loading the T5 model and tokenizer.
         self.model = T5ForConditionalGeneration.from_pretrained(model_name, config=config)
@@ -75,18 +74,9 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         Performs the forward pass of the model. If labels are provided, it returns
         the loss; otherwise, it returns logits.
-
-        Parameters:
-            input_ids (torch.Tensor): Tensor of input IDs.
-            attention_mask (torch.Tensor): Tensor representing attention masks.
-            labels (torch.Tensor, optional): Tensor of labels. If provided, the loss is returned.
-
-        Returns:
-            ModelOutput: The output from the T5 model. Includes loss if labels are provided.
         """
         # The model handles both inference and training based on whether labels are provided.
-        #return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-        return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels, output_attentions=True)
+        return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
     
     def custom_loss(self,outputs, targets, differential_weights):
         """
@@ -95,21 +85,12 @@ class FlanT5FineTuner(pl.LightningModule):
         This function modifies the standard cross-entropy loss by applying a different
         weight to each token based on its importance, which is determined by the differential_weights tensor.
         This is particularly useful for focusing the model's learning on specific parts of the input data.
-        
-        Returns:
-            torch.Tensor: A single scalar tensor representing the mean weighted loss across all inputs in the batch.
         """
         # Flatten all tensors to align shapes for element-wise operations
         logits_flat = outputs.view(-1, outputs.size(-1))  # Reshape to [batch_size * seq_length, vocab_size]
         targets_flat = targets.view(-1)  # Flatten to [batch_size * seq_length]
         # Flatten differential weights to match the sequence tokens
-        differential_weights_flat = differential_weights.view(-1)  # Flatten to [batch_size * seq_length]
-        # Print shapes for debugging
-        print("logits_flat shape:", logits_flat.shape)
-        print("targets_flat shape:", targets_flat.shape)
-        print("differential_weights_flat shape:", differential_weights_flat.shape)
-
-        
+        differential_weights_flat = differential_weights.view(-1)  # Flatten to [batch_size * seq_length]  
         # It's critical to ensure the shapes match up for logits, targets, and differential weights.
         # This check helps avoid potential errors during training.
         if logits_flat.size(0) != differential_weights_flat.size(0):
@@ -120,12 +101,7 @@ class FlanT5FineTuner(pl.LightningModule):
         
         # Apply the differential weights to each token's loss.
         weighted_loss_per_token = loss_per_token * differential_weights_flat
-
-         # Print sample losses for debugging
-        print("Sample loss_per_token:", loss_per_token[:10])  # Print the first 10 values
-        print("Sample weighted_loss_per_token:", weighted_loss_per_token[:10])  # Print the first 10 values
-
-        
+     
         # Calculate the mean of the weighted losses to get a single scalar representing the batch's loss.
         mean_weighted_loss = weighted_loss_per_token.mean()
         
@@ -141,13 +117,6 @@ class FlanT5FineTuner(pl.LightningModule):
             The custom loss function applies differential weights to each token in the input sequence,
             allowing the model to focus more on certain tokens that are deemed more important according
             to the differential_weights tensor provided in the batch.
-
-            Args:
-                batch (dict): Contains the input_ids, attention_mask, labels, and possibly differential_weights for the batch.
-                batch_idx (int): The index of the current batch within the epoch.
-
-            Returns:
-                torch.Tensor: The loss value calculated using the appropriate loss function.
         """ 
         
         # Perform a forward pass through the model to get the outputs
@@ -174,10 +143,6 @@ class FlanT5FineTuner(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         """
         Executes a validation step, generating predictions and calculating metrics.
-
-        Args:
-            batch (dict): A single batch of data from the DataLoader.
-            batch_idx (int): The index of the batch in the dataset.
         """
         # Forward pass to compute loss and model outputs
         outputs = self.forward(
@@ -185,20 +150,18 @@ class FlanT5FineTuner(pl.LightningModule):
             attention_mask=batch['attention_mask'],
             labels=batch['labels']
         )
+        print("The forward outputs", outputs.keys())
         val_loss = outputs.loss
         # attentions = outputs.attentions if CONFIG["output_attentions"] and CONFIG["log_attentions"] else None
 
-        # Debugging: Check if attentions are in the outputs
-        if 'attentions' in outputs:
-            attentions = outputs.attentions
-            print("Attentions are available.")
-        else:
-            print("Attentions are not available.")
-            attentions = None
-
+        # Extract attentions if available
+        decoder_attentions = outputs.decoder_attentions if 'decoder_attentions' in outputs and CONFIG["log_attentions"] else None
+        cross_attentions = outputs.cross_attentions if 'cross_attentions' in outputs and CONFIG["log_attentions"] else None
+        
         # Log val_loss and optionally log whether attentions were processed
         self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        self.log('attentions_logged', float(attentions is not None), on_step=False, on_epoch=True)
+        #self.log('decoder_attentions_logged', float(decoder_attentions is not None), on_step=False, on_epoch=True)
+        #self.log('cross_attentions_logged', float(cross_attentions is not None), on_step=False, on_epoch=True)
 
         # Generate text predictions from the model using the individual components
         generated_texts = self.generate_text(
@@ -210,7 +173,6 @@ class FlanT5FineTuner(pl.LightningModule):
         edited_endings = batch['edited_ending']
         
         # Prepare data for detailed analysis or logging
-        # Prepare data for detailed analysis or logging
         validation_details = [{
             'Epoch': self.current_epoch,
             'Premise': premise,
@@ -219,13 +181,14 @@ class FlanT5FineTuner(pl.LightningModule):
             'Original Ending': original_ending,
             'Edited Ending': edited_ending,
             'Generated Text': generated_text,
-            'Attention Weights': attention if CONFIG['log_attentions'] else "Not logged"
-        } for premise, initial, counterfactual, original_ending, edited_ending, generated_text, attention
-        in zip(batch['premise'], batch['initial'], batch['counterfactual'], batch['original_ending'], batch['edited_ending'], generated_texts, (attentions if attentions else []))]
+            'Decoder Attention Weights': decoder_attention if CONFIG['log_attentions'] else "Not logged",
+            'Cross Attention Weights': cross_attention if CONFIG['log_attentions'] else "Not logged"
+        } for premise, initial, counterfactual, original_ending, edited_ending, generated_text, decoder_attention, cross_attention
+        in zip(batch['premise'], batch['initial'], batch['counterfactual'], batch['original_ending'], batch['edited_ending'], generated_texts, decoder_attentions or [], cross_attentions or [])]
 
         self.epoch_validation_details.extend(validation_details)
 
-        # Store output information for metric calculation at the end of the epoch
+        # Store output information
         output = {
             'generated': generated_texts,
             'edited_endings': edited_endings,
@@ -233,9 +196,11 @@ class FlanT5FineTuner(pl.LightningModule):
             'counterfactuals': batch['counterfactual'],
             'original_endings': batch['original_ending'],
             'initials': batch['initial'],
-            'premises': batch['premise'],
-            'attentions': attentions  # Only store if attentions are being logged
+            'decoder_attentions': decoder_attentions,  # Store decoder attentions if they exist
+            'cross_attentions': cross_attentions,      # Store cross attentions if they exist
+            'input_ids': batch['input_ids'],  # Make sure to store input_ids for later use
         }
+
         self.current_val_step_outputs.append(output)
         self.log_dict({"avg_val_loss": val_loss}, on_step=False, on_epoch=True, prog_bar=True, logger=True)  # Example of structured logging
 
@@ -247,14 +212,19 @@ class FlanT5FineTuner(pl.LightningModule):
         aggregated_texts = self.aggregate_texts()
         self.log_metrics(aggregated_texts)
 
-        # Visualize attentions if any outputs were stored during validation
         if CONFIG['log_attentions'] and self.current_val_step_outputs:
             for output in self.current_val_step_outputs:
-                if output['attentions'] is not None:
-                    attentions = output['attentions']
-                    input_ids = output['input_ids'][0]  # Assume visualizing the first example
+                if 'decoder_attentions' in output and output['decoder_attentions'] is not None:
+                    input_ids = output['input_ids'][0]  # First example for visualization
                     tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
-                    visualize_attention(attentions, tokens, layer_num=0, head_num=0)  # Example: first layer and head  
+                    # Visualizing the first example, first layer, first head
+                    visualize_attention(
+                        attentions=output['decoder_attentions'],
+                        tokens=tokens,
+                        layer_num=0,
+                        head_num=0,
+                        example_index=0
+                    )
 
         # Handle CSV logging
         csv_file_path = self.determine_csv_path(test_flag)
