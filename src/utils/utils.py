@@ -12,12 +12,6 @@ def count_json_lines(file_path):
     """
     Counts the number of lines in a JSON file, which is useful for estimating
     the dataset size or for iterative processing without loading the entire file.
-    
-    Parameters:
-        file_path (str): The path to the JSON file.
-        
-    Returns:
-        int: The number of lines in the file.
     """
     logger.info(f"Counting lines in file: {file_path}")
     try:
@@ -31,12 +25,6 @@ def load_first_line_from_json(file_path):
     """
     Loads and parses the first line from a JSON file. This is useful for inspecting
     the data structure without loading the entire file.
-    
-    Parameters:
-        file_path (str): The path to the JSON file.
-        
-    Returns:
-        dict: The first JSON object in the file.
     """
     logger.info(f"Loading first line from JSON file: {file_path}")
     try:
@@ -67,14 +55,6 @@ def preprocess_data(row, tokenizer):
     """
     Prepares a single row of data for model input by tokenizing the text fields.
     It constructs the input sequence by combining story parts and tokenizes them.
-    
-    Parameters:
-        row (pd.Series): A row from the dataset.
-        tokenizer: The tokenizer used for text processing.
-        max_length (int): The maximum token length for model inputs.
-        
-    Returns:
-        dict: A dictionary containing tokenized inputs, attention masks, labels, and original text for evaluation.
     """
     logger.debug("Preprocessing data row...")
     
@@ -95,10 +75,7 @@ def preprocess_data(row, tokenizer):
         tokenized_inputs = tokenizer.encode_plus(
             input_sequence, truncation=True, return_tensors="pt", max_length=CONFIG["max_length"]
         )
-        
-        # Join the list of edited endings into a single string
-        #edited_ending_joined = ' '.join(row['edited_ending'])
-        
+              
         # Tokenize the edited ending, which serves as the target sequence for the model to generate.
         tokenized_ending = tokenizer.encode_plus(
             row['edited_ending'], truncation=True, return_tensors="pt", max_length=CONFIG["max_length"]
@@ -106,8 +83,6 @@ def preprocess_data(row, tokenizer):
         
         # Calculate differential weights based on the list of differences provided for each token. This highlights tokens
         # that are directly associated with the differences, aiming to adjust the model's focus and learning priority.
-        # Calculate differential weights for the tokenized target (edited ending)
-        # Calculate differential weights for the tokenized target (edited ending)
         differential_weights = calculate_differential_weights(
             tokenized_ending['input_ids'].squeeze(), tokenizer, row['differences']
         )
@@ -120,7 +95,6 @@ def preprocess_data(row, tokenizer):
             'input_ids': tokenized_inputs['input_ids'].squeeze(0),
             'attention_mask': tokenized_inputs['attention_mask'].squeeze(0),
             'labels': tokenized_ending['input_ids'].squeeze(0),
-            #'differential_weights': differential_weights,
             'differential_weights': differential_weights.squeeze(0),  # Ensure the differential weights are correctly sized.
             # Include non-tokenized data for metric calculations.
             'premise': row['premise'],
@@ -137,23 +111,10 @@ def collate_fn(batch, pad_token_id=0,attention_pad_value=0):
     """
     Collates a batch of preprocessed data into a format suitable for model input,
     including padding to equalize the lengths of sequences within the batch.
-    
-    Parameters:
-        batch (list of dicts): A batch of data points.
-        pad_token_id (int, optional): Token ID used for padding. Default is 0.
-        
-    Returns:
-        dict: A dictionary containing batched and padded input_ids, attention_mask,
-        labels, and other fields for evaluation.
     """
     
     # Unpack the batch into separate lists for each field.
     input_ids, attention_mask, labels, differential_weights, premise, initial, original_ending, counterfactual, edited_ending = list(zip(*batch))
-    print("Before padding:")
-    print(f"Sample input_ids length: {len(input_ids[0])}")
-    print(f"Sample attention_mask length: {len(attention_mask[0])}")
-    print(f"Sample labels length: {len(labels[0])}")
-    print(f"Sample differential_weights length: {len(differential_weights[0])}")
     
     # Padding sequences for 'input_ids', 'attention_masks', and 'labels'
     input_ids_padded = torch.nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=pad_token_id)
@@ -163,12 +124,6 @@ def collate_fn(batch, pad_token_id=0,attention_pad_value=0):
     # Convert differential_weights to tensors and pad
     differential_weights_tensors = [torch.tensor(dw, dtype=torch.float) for dw in differential_weights]
     differential_weights_padded = torch.nn.utils.rnn.pad_sequence(differential_weights_tensors, batch_first=True, padding_value=1)
-
-    print("After padding:")
-    print(f"Padded input_ids shape: {input_ids_padded.shape}")
-    print(f"Padded attention_mask shape: {attention_masks_padded.shape}")
-    print(f"Padded labels shape: {labels_padded.shape}")
-    print(f"Padded differential_weights shape: {differential_weights_padded.shape}")
 
     # Return the padded tensors along with the additional fields for evaluation.
     return {
