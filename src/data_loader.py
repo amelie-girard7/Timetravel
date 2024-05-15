@@ -69,6 +69,7 @@ def create_dataloaders(data_path, tokenizer, batch_size, num_workers):
     dataloaders = {}
     for file_name in file_names:
         file_path = Path(data_path) / file_name
+        print(f"Checking file: {file_path}")  # Debug print to check paths
         if not file_path.exists():
             raise FileNotFoundError(f"{file_path} does not exist.")
         dataset = CustomJSONDataset(file_path, tokenizer)

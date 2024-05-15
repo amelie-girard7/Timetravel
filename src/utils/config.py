@@ -28,11 +28,11 @@ CONFIG = {
     # Model and training configurations
     "model_name": os.getenv('MODEL_NAME', "google/flan-t5-base"),
     #"model_name": os.getenv('MODEL_NAME', "google/flan-t5-large"),
-    "batch_size": int(os.getenv('BATCH_SIZE', 4)),
+    "batch_size": int(os.getenv('BATCH_SIZE', 2)),
     "num_workers": int(os.getenv('NUM_WORKERS', 3)),
     "max_epochs": int(os.getenv('MAX_EPOCHS', 1)),
     "learning_rate": float(os.getenv('LEARNING_RATE', 2e-5)),
-    "use_custom_loss": False,  # True if you want to use custom loss function
+    "use_custom_loss": True,  # True if you want to use custom loss function
     "output_attentions": True,  # Enable/disable attention outputs
     "log_attentions": True, # True if you want to log the attention
     

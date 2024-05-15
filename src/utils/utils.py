@@ -34,7 +34,7 @@ def load_first_line_from_json(file_path):
         logger.error(f"Error reading from {file_path}: {e}")
         raise IOError(f"Error reading from {file_path}: {e}")
 
-def calculate_differential_weights(tokenized_labels, tokenizer, differences, high_weight=100, base_weight=1):
+def calculate_differential_weights(tokenized_labels, tokenizer, differences, high_weight=20, base_weight=1):
         """
         Calculate differential weights for tokenized labels (edited endings) based on differences.
         """
@@ -106,7 +106,7 @@ def preprocess_data(row, tokenizer):
     except Exception as e:
         logger.error(f"Error in preprocess_data: {e}")
         return None
-    
+
 def collate_fn(batch, pad_token_id=0,attention_pad_value=0):
     """
     Collates a batch of preprocessed data into a format suitable for model input,
@@ -122,7 +122,8 @@ def collate_fn(batch, pad_token_id=0,attention_pad_value=0):
     labels_padded = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=pad_token_id)
    
     # Convert differential_weights to tensors and pad
-    differential_weights_tensors = [torch.tensor(dw, dtype=torch.float) for dw in differential_weights]
+    differential_weights_tensors = [dw.clone().detach().to(input_ids_padded.device) for dw in differential_weights]
+    # differential_weights_tensors = [torch.tensor(dw, dtype=torch.float) for dw in differential_weights]
     differential_weights_padded = torch.nn.utils.rnn.pad_sequence(differential_weights_tensors, batch_first=True, padding_value=1)
 
     # Return the padded tensors along with the additional fields for evaluation.
