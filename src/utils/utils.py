@@ -90,6 +90,11 @@ def preprocess_data(row, tokenizer):
         # Ensure that 'differential_weights' matches the length of 'labels'
         assert tokenized_ending['input_ids'].squeeze(0).size() == differential_weights.size(), "Mismatch between labels and differential weights length."
         
+        print(f"Input IDs: {tokenized_inputs['input_ids']}")
+        print(f"Attention Mask: {tokenized_inputs['attention_mask']}")
+        print(f"Labels: {tokenized_ending['input_ids']}")
+        print(f"Differential Weights: {differential_weights}")
+
         # Return the tokenized inputs, labels, and original data fields for evaluation.
         return {
             'input_ids': tokenized_inputs['input_ids'].squeeze(0),
@@ -125,6 +130,13 @@ def collate_fn(batch, pad_token_id=0,attention_pad_value=0):
     differential_weights_tensors = [dw.clone().detach().to(input_ids_padded.device) for dw in differential_weights]
     # differential_weights_tensors = [torch.tensor(dw, dtype=torch.float) for dw in differential_weights]
     differential_weights_padded = torch.nn.utils.rnn.pad_sequence(differential_weights_tensors, batch_first=True, padding_value=1)
+
+     # Debug prints
+    print(f"input_ids_padded shape: {input_ids_padded.shape}")
+    print(f"attention_masks_padded shape: {attention_masks_padded.shape}")
+    print(f"labels_padded shape: {labels_padded.shape}")
+    print(f"differential_weights_padded shape: {differential_weights_padded.shape}")
+
 
     # Return the padded tensors along with the additional fields for evaluation.
     return {
