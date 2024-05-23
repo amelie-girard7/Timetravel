@@ -32,7 +32,7 @@ class CustomJSONDataset(Dataset):
         # Preprocess the data using the provided tokenizer and calculate differential weights
         # Applying preprocessing row-wise and expanding the result to columns for easier access
         self.processed_data = data.apply(lambda row: preprocess_data(row,self.tokenizer), axis=1, result_type='expand')
-       
+        print(self.processed_data.head())  # Debug print to check the structure of the processed data
 
     def __len__(self):
         """Returns the total number of items in the dataset."""
@@ -69,6 +69,7 @@ def create_dataloaders(data_path, tokenizer, batch_size, num_workers):
     dataloaders = {}
     for file_name in file_names:
         file_path = Path(data_path) / file_name
+        print(f"Checking file: {file_path}")  # Debug print to check paths
         if not file_path.exists():
             raise FileNotFoundError(f"{file_path} does not exist.")
         dataset = CustomJSONDataset(file_path, tokenizer)

@@ -44,6 +44,8 @@ def setup_dataloaders(model, tokenizer):
         A dictionary with keys 'train', 'val', and 'test' pointing to their respective dataloaders.
     """
     data_path = CONFIG["data_dir"] / 'transformed'
+    print(f"Data path: {data_path}")  # Debug print to ensure the path is correct
+
     batch_size = CONFIG["batch_size"]
     num_workers = CONFIG["num_workers"]
 
@@ -85,6 +87,12 @@ def main():
     """
     Main function orchestrating the model training and evaluation process.
     """
+    # Set the specific GPU to use
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # Adjust the index to select a different GPU
+
+    # Set Tensor Core precision policy for better performance on Tensor Cores
+    torch.set_float32_matmul_precision('high')
+
     try:
         # Timestamp for unique directory creation
         model_timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H")
@@ -92,7 +100,7 @@ def main():
         model_dir.mkdir(parents=True, exist_ok=True) # Ensure directories exist
         
         # Setup tokenizer
-        tokenizer = T5Tokenizer.from_pretrained(CONFIG["model_name"])
+        tokenizer = T5Tokenizer.from_pretrained(CONFIG["model_name"], legacy=False)
         
         # Prepare model, dataloaders, and trainer
         model = setup_model(model_dir)

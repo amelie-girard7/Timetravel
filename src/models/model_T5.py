@@ -12,7 +12,11 @@ from rouge import Rouge
 from bert_score import BERTScorer
 from src.BARTScore_metric.bart_score import BARTScorer
 from src.utils.config import CONFIG
-from src.utils.visualization import visualize_attention
+from bertviz import model_view, head_view
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+
 
 bart_score_path = str(CONFIG["bart_score_dir"])
 if bart_score_path not in sys.path:
@@ -32,15 +36,16 @@ class FlanT5FineTuner(pl.LightningModule):
         super().__init__()
 
         # Load the configuration for the model with output_attentions enabled
-        config = T5Config.from_pretrained(model_name, output_attentions=CONFIG["output_attentions"])
-        #config = T5Config.from_pretrained(model_name, output_attentions="True")
-
-        # Debugging: Print the configuration to verify output_attentions is set to True
-        print("T5 Config", config)
+        #config = T5Config.from_pretrained(model_name, output_attentions=CONFIG["output_attentions"])
+        #config = T5Config.from_pretrained(model_name, output_attentions=True)
+        config = T5Config.from_pretrained(model_name)
+        config.output_attentions = True
 
         # Loading the T5 model and tokenizer.
         self.model = T5ForConditionalGeneration.from_pretrained(model_name, config=config)
         self.tokenizer = T5Tokenizer.from_pretrained(model_name)
+
+        #print("Model initialized with configuration:", config)
         
          # Use the same timestamped model_dir for CSVs and model checkpoints
         self.val_csv_file_path = model_dir / "validation_details.csv"
@@ -69,15 +74,29 @@ class FlanT5FineTuner(pl.LightningModule):
         
         # Temporary storage for Text-generation sanity check
         self.epoch_validation_details = []
- 
+
     def forward(self, input_ids, attention_mask, labels=None):
         """
-        Performs the forward pass of the model. If labels are provided, it returns
-        the loss; otherwise, it returns logits.
+        Performs the forward pass of the model. If labels are provided, it calculates the loss; 
+        otherwise, it returns logits. This method also handles the retrieval of attention outputs.
         """
-        # The model handles both inference and training based on whether labels are provided.
-        return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-    
+        outputs = self.model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            labels=labels,
+            output_attentions=True  # Ensure attentions are returned
+        )
+        
+        # Debug prints for forward outputs
+        print("Forward pass outputs:")
+        print(f"logits shape: {outputs.logits.shape}")
+        if hasattr(outputs, 'attentions'):
+            print(f"attentions shape: {outputs.attentions[0].shape}")
+        else:
+            print("No attentions returned")
+
+        return outputs
+
     def custom_loss(self,outputs, targets, differential_weights):
         """
         Custom loss function that applies differential weights to the calculation.
@@ -93,6 +112,12 @@ class FlanT5FineTuner(pl.LightningModule):
         differential_weights_flat = differential_weights.view(-1)  # Flatten to [batch_size * seq_length]  
         # It's critical to ensure the shapes match up for logits, targets, and differential weights.
         # This check helps avoid potential errors during training.
+
+        print("Custom loss calculation:")
+        print(f"logits_flat shape: {logits_flat.shape}, type: {type(logits_flat)}")
+        print(f"targets_flat shape: {targets_flat.shape}, type: {type(targets_flat)}")
+        print(f"differential_weights_flat shape: {differential_weights_flat.shape}, type: {type(differential_weights_flat)}")
+
         if logits_flat.size(0) != differential_weights_flat.size(0):
            raise ValueError("The size of logits and differential weights does not match, indicating a potential issue in preprocessing or batch assembly.")
         
@@ -118,7 +143,13 @@ class FlanT5FineTuner(pl.LightningModule):
             allowing the model to focus more on certain tokens that are deemed more important according
             to the differential_weights tensor provided in the batch.
         """ 
-        
+        print("Training step:")
+        print(f"Batch input_ids shape: {batch['input_ids'].shape}, type: {type(batch['input_ids'])}")
+        print(f"Batch attention_mask shape: {batch['attention_mask'].shape}, type: {type(batch['attention_mask'])}")
+        print(f"Batch labels shape: {batch['labels'].shape}, type: {type(batch['labels'])}")
+        if 'differential_weights' in batch:
+            print(f"Batch differential_weights shape: {batch['differential_weights'].shape}, type: {type(batch['differential_weights'])}")
+
         # Perform a forward pass through the model to get the outputs
         outputs = self.forward(
             input_ids=batch['input_ids'],
@@ -135,44 +166,49 @@ class FlanT5FineTuner(pl.LightningModule):
             loss = outputs.loss
 
             # Log the custom calculated loss for monitoring. Logging it as 'train_loss' allows tracking within the Lightning framework.
-        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=batch['input_ids'].size(0))
+
 
        # Return the loss for backpropagation.
         return loss
-   
+    
     def validation_step(self, batch, batch_idx):
-        """
-        Executes a validation step, generating predictions and calculating metrics.
-        """
-        # Forward pass to compute loss and model outputs
+        print("Validation step:")
+        print(f"Batch input_ids shape: {batch['input_ids'].shape}, type: <class 'torch.Tensor'>")
+        print(f"Batch attention_mask shape: {batch['attention_mask'].shape}, type: <class 'torch.Tensor'>")
+        print(f"Batch labels shape: {batch['labels'].shape}, type: <class 'torch.Tensor'>")
+
+        # Perform forward pass
         outputs = self.forward(
             input_ids=batch['input_ids'],
             attention_mask=batch['attention_mask'],
             labels=batch['labels']
         )
-        print("The forward outputs", outputs.keys())
+
+        # Check attentions in outputs
+        if hasattr(outputs, 'attentions') and outputs.attentions is not None:
+            print(f"Outputs attentions shape: {outputs.attentions[0].shape}")
+        else:
+            print("No attentions found in outputs")
+
+        # Calculate validation loss
         val_loss = outputs.loss
-        # attentions = outputs.attentions if CONFIG["output_attentions"] and CONFIG["log_attentions"] else None
+        self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=batch['input_ids'].size(0))
 
-        # Extract attentions if available
-        decoder_attentions = outputs.decoder_attentions if 'decoder_attentions' in outputs and CONFIG["log_attentions"] else None
-        cross_attentions = outputs.cross_attentions if 'cross_attentions' in outputs and CONFIG["log_attentions"] else None
-        
-        # Log val_loss and optionally log whether attentions were processed
-        self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        #self.log('decoder_attentions_logged', float(decoder_attentions is not None), on_step=False, on_epoch=True)
-        #self.log('cross_attentions_logged', float(cross_attentions is not None), on_step=False, on_epoch=True)
-
-        # Generate text predictions from the model using the individual components
-        generated_texts = self.generate_text(
+        # Generate text and capture attentions
+        generated_texts, self_attentions, cross_attentions = self.generate_text(
             input_ids=batch['input_ids'],
             attention_mask=batch['attention_mask']
         )
         
-        # Decode the labels (ground truth edited ending) from the batch for comparison with the model's generated text
+        # Debug prints for generated texts
+        print("Generated texts:")
+        for idx, text in enumerate(generated_texts):
+            print(f"Text {idx}: {text}")
+
         edited_endings = batch['edited_ending']
-        
-        # Prepare data for detailed analysis or logging
+
+        # Prepare validation details for logging
         validation_details = [{
             'Epoch': self.current_epoch,
             'Premise': premise,
@@ -181,14 +217,12 @@ class FlanT5FineTuner(pl.LightningModule):
             'Original Ending': original_ending,
             'Edited Ending': edited_ending,
             'Generated Text': generated_text,
-            'Decoder Attention Weights': decoder_attention if CONFIG['log_attentions'] else "Not logged",
-            'Cross Attention Weights': cross_attention if CONFIG['log_attentions'] else "Not logged"
-        } for premise, initial, counterfactual, original_ending, edited_ending, generated_text, decoder_attention, cross_attention
-        in zip(batch['premise'], batch['initial'], batch['counterfactual'], batch['original_ending'], batch['edited_ending'], generated_texts, decoder_attentions or [], cross_attentions or [])]
+        } for premise, initial, counterfactual, original_ending, edited_ending, generated_text
+        in zip(batch['premise'], batch['initial'], batch['counterfactual'], batch['original_ending'], batch['edited_ending'], generated_texts)]
 
         self.epoch_validation_details.extend(validation_details)
 
-        # Store output information
+        # Collect outputs for this validation step
         output = {
             'generated': generated_texts,
             'edited_endings': edited_endings,
@@ -196,13 +230,106 @@ class FlanT5FineTuner(pl.LightningModule):
             'counterfactuals': batch['counterfactual'],
             'original_endings': batch['original_ending'],
             'initials': batch['initial'],
-            'decoder_attentions': decoder_attentions,  # Store decoder attentions if they exist
-            'cross_attentions': cross_attentions,      # Store cross attentions if they exist
-            'input_ids': batch['input_ids'],  # Make sure to store input_ids for later use
+            'input_ids': batch['input_ids'],
+            'attention_mask': batch['attention_mask'],
+            'outputs': outputs
         }
 
         self.current_val_step_outputs.append(output)
-        self.log_dict({"avg_val_loss": val_loss}, on_step=False, on_epoch=True, prog_bar=True, logger=True)  # Example of structured logging
+
+        # Visualize attention if configured
+        if CONFIG["log_attentions"]:
+            if batch_idx == 0:
+                self.visualize_attention(batch['input_ids'], batch['attention_mask'], batch['input_ids'], cross_attentions, self_attentions)
+
+        # Log average validation loss
+        self.log_dict({"avg_val_loss": val_loss}, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=batch['input_ids'].size(0))
+
+    def generate_text(self, input_ids, attention_mask):
+        # Enable output of attentions and return dict in generate
+        self.model.config.return_dict_in_generate = True
+        self.model.config.output_attentions = True
+
+        # Generate text sequences and capture attentions
+        generated_ids = self.model.generate(
+            input_ids=input_ids, 
+            attention_mask=attention_mask, 
+            max_length=CONFIG["max_gen_length"],
+            output_attentions=True,  # Ensure attentions are returned
+            return_dict_in_generate=True  # Return a dictionary including attentions
+        )
+
+        # Decode generated sequences into text
+        generated_texts = [
+            self.tokenizer.decode(generated_id, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+            for generated_id in generated_ids.sequences
+        ]
+
+        # Debug prints for generated texts
+        print("Generated text sequences:")
+        for idx, text in enumerate(generated_texts):
+            print(f"Generated text {idx}: {text}")
+
+        # Capture attentions from the generation process
+        cross_attentions = generated_ids.cross_attentions if hasattr(generated_ids, 'cross_attentions') else None
+        self_attentions = generated_ids.attentions if hasattr(generated_ids, 'attentions') else None
+
+        # Debug prints for attentions
+        if cross_attentions:
+            print("Cross attentions shapes:")
+            for i, layer_attns in enumerate(cross_attentions):
+                print(f"Layer {i} cross attentions shapes:")
+                for j, attn in enumerate(layer_attns):
+                    print(f"Head {j} shape: {attn.shape}")
+        else:
+            print("No cross attentions")
+
+        if self_attentions:
+            print("Self attentions shapes:")
+            for i, layer_attns in enumerate(self_attentions):
+                print(f"Layer {i} self attentions shapes:")
+                for j, attn in enumerate(layer_attns):
+                    print(f"Head {j} shape: {attn.shape}")
+        else:
+            print("No self attentions")
+
+        # Return generated texts along with self and cross attentions
+        return generated_texts, self_attentions, cross_attentions
+
+    def visualize_attention(self, input_ids, attention_mask, labels, cross_attentions, self_attentions):
+        # Convert tensors to tokens for visualization
+        input_tokens = self.tokenizer.convert_ids_to_tokens(input_ids[0])
+        label_tokens = self.tokenizer.convert_ids_to_tokens(labels[0])
+        
+        # Debug prints for tokens
+        print(f"Input Tokens: {input_tokens}")
+        print(f"Generated Tokens: {label_tokens}")
+        
+        # Visualize cross-attentions
+        if cross_attentions:
+            print("Cross-Attention Visualization")
+            for i, layer_attns in enumerate(cross_attentions):
+                print(f"Layer {i} cross attentions shapes:")
+                for j, attn in enumerate(layer_attns):
+                    attn = attn.squeeze().mean(dim=1).detach().cpu().numpy()  # Average over heads
+                    self.plot_attention(attention=attn, tokens=input_tokens, title=f"Cross-Attention Layer {i}")
+
+        # Visualize self-attentions
+        if self_attentions:
+            print("Self-Attention Visualization")
+            for i, layer_attns in enumerate(self_attentions):
+                print(f"Layer {i} self attentions shapes:")
+                for j, attn in enumerate(layer_attns):
+                    attn = attn.squeeze().mean(dim=1).detach().cpu().numpy()  # Average over heads
+                    self.plot_attention(attention=attn, tokens=label_tokens, title=f"Self-Attention Layer {i}")
+
+    def plot_attention(self, attention, tokens, title):
+        fig, ax = plt.subplots(figsize=(10, 10))
+        sns.heatmap(attention, xticklabels=tokens, yticklabels=tokens, ax=ax, cmap="viridis")
+        ax.set_xlabel("Tokens")
+        ax.set_ylabel("Tokens")
+        ax.set_title(title)
+        plt.show()
 
     def on_validation_epoch_end(self, test_flag=False):
         """
@@ -211,20 +338,6 @@ class FlanT5FineTuner(pl.LightningModule):
         # Aggregate texts from the outputs for metric calculation
         aggregated_texts = self.aggregate_texts()
         self.log_metrics(aggregated_texts)
-
-        if CONFIG['log_attentions'] and self.current_val_step_outputs:
-            for output in self.current_val_step_outputs:
-                if 'decoder_attentions' in output and output['decoder_attentions'] is not None:
-                    input_ids = output['input_ids'][0]  # First example for visualization
-                    tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
-                    # Visualizing the first example, first layer, first head
-                    visualize_attention(
-                        attentions=output['decoder_attentions'],
-                        tokens=tokens,
-                        layer_num=0,
-                        head_num=0,
-                        example_index=0
-                    )
 
         # Handle CSV logging
         csv_file_path = self.determine_csv_path(test_flag)
@@ -235,7 +348,7 @@ class FlanT5FineTuner(pl.LightningModule):
 
         # Clean up stored data from the current validation epoch
         self.cleanup_epoch_data()
-
+  
     def aggregate_texts(self):
         """
         Aggregates texts from the current validation step outputs for metrics calculation.
@@ -259,7 +372,6 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         Logs various similarity scores based on aggregated texts.
         """
-        # Adjust this section to correctly unpack aggregated_texts and pass to the metric functions
         try:
             self.calculate_and_log_bleu_scores(
                 all_generated_texts=aggregated_texts['generated'],
@@ -440,21 +552,30 @@ class FlanT5FineTuner(pl.LightningModule):
         lr = CONFIG["learning_rate"]
         return torch.optim.AdamW(self.parameters(), lr=lr)
 
-    def generate_text(self, input_ids, attention_mask):
-        """
-        Generates text sequences from the provided input components using the model,
-        with a customizable maximum length for the generated text.
-        """
-        generated_ids = self.model.generate(
-        input_ids=input_ids, 
-        attention_mask=attention_mask, 
-        max_length=CONFIG["max_gen_length"]
-        )
+    def normalize_attention(attention):
+        # Normalize attention across heads by averaging
+        attention = attention.mean(dim=1).detach().cpu().numpy()
+        
+        # Debug print for normalized attention
+        print(f"Normalized attention shape: {attention.shape}")
+        
+        return attention
 
-        #@Inigo do you think that skipping the special token needs to be set to default due to our input?
-        generated_texts = [
-            self.tokenizer.decode(generated_id, skip_special_tokens=True, clean_up_tokenization_spaces=True)
-            for generated_id in generated_ids
-        ]
+    def plot_heatmap(attention, tokens_a, tokens_b):
+        import matplotlib.pyplot as plt
+        import seaborn as sns
 
-        return generated_texts
+        # Debug prints for tokens and attention
+        print("Tokens A:", tokens_a)
+        print("Tokens B:", tokens_b)
+        print("Attention shape:", attention.shape)
+
+        # Plot heatmap
+        fig, ax = plt.subplots(figsize=(10, 10))
+        sns.heatmap(attention, xticklabels=tokens_b, yticklabels=tokens_a, cmap='viridis', ax=ax)
+        plt.xlabel('Generated Tokens')
+        plt.ylabel('Input Tokens')
+        plt.title('Cross-Attention Heatmap')
+        plt.show()
+
+
