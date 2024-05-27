@@ -28,7 +28,7 @@ CONFIG = {
     # Model and training configurations
     "model_name": os.getenv('MODEL_NAME', "google/flan-t5-base"),
     #"model_name": os.getenv('MODEL_NAME', "google/flan-t5-large"),
-    "batch_size": int(os.getenv('BATCH_SIZE', 2)),
+    "batch_size": int(os.getenv('BATCH_SIZE', 1)),
     "num_workers": int(os.getenv('NUM_WORKERS', 3)),
     "max_epochs": int(os.getenv('MAX_EPOCHS', 1)),
     "learning_rate": float(os.getenv('LEARNING_RATE', 2e-5)),
