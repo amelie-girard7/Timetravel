@@ -15,6 +15,7 @@ CONFIG = {
     "models_dir": ROOT_DIR / "models",
     "logs_dir": ROOT_DIR / "logs",
     "bart_score_dir": BARTSCORE_DIR,
+    "results_dir": ROOT_DIR / "results",  # Zero shot experiment
     
     # File names
     #"train_file": "train_supervised_small.json",
@@ -57,7 +58,7 @@ CONFIG = {
 }
 
 # Optionally, validate or create the directories
-for path_key in ['data_dir', 'models_dir', 'logs_dir']:
+for path_key in ['data_dir', 'models_dir', 'logs_dir', 'results_dir']:
     path = CONFIG[path_key]
     if not path.exists():
         print(f"Creating directory: {path}")

@@ -2,6 +2,7 @@
 
 import json
 import logging
+import random
 import torch
 import torch.nn.utils.rnn
 from src.utils.config import CONFIG
@@ -150,3 +151,36 @@ def collate_fn(batch, pad_token_id=0,attention_pad_value=0):
         'counterfactual': counterfactual,
         'edited_ending': edited_ending,
     }
+
+def zero_shot_inference(model, tokenizer, test_data):
+    results = []
+    for idx, row in test_data.iterrows():
+        prompt = f"Generate a response for the following input: {row['input']}"
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+        output_ids = model.generate(input_ids)
+        generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        results.append({
+            'input': row['input'],
+            'generated_text': generated_text
+        })
+    return results
+
+def one_shot_inference(model, tokenizer, test_data, example_data):
+    results = []
+    for idx, row in test_data.iterrows():
+        # Randomly select an example
+        example_row = example_data.sample(n=1).iloc[0]
+        prompt = (
+            f"Example:\nInput: {example_row['input']}\nResponse: {example_row['response']}\n\n"
+            f"Now, generate a response for the following input: {row['input']}"
+        )
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+        output_ids = model.generate(input_ids)
+        generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        results.append({
+            'input': row['input'],
+            'example_input': example_row['input'],
+            'example_response': example_row['response'],
+            'generated_text': generated_text
+        })
+    return results
