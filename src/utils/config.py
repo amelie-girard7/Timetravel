@@ -15,7 +15,7 @@ CONFIG = {
     "models_dir": ROOT_DIR / "models",
     "logs_dir": ROOT_DIR / "logs",
     "bart_score_dir": BARTSCORE_DIR,
-    "results_dir": ROOT_DIR / "results",  # Zero shot experiment
+    "results_dir": ROOT_DIR / "results",  # Directory to save inference results
     
     # File names
     #"train_file": "train_supervised_small.json",

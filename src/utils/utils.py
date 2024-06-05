@@ -2,7 +2,8 @@
 
 import json
 import logging
-import random
+import openai
+import pandas as pd
 import torch
 import torch.nn.utils.rnn
 from src.utils.config import CONFIG
@@ -152,35 +153,125 @@ def collate_fn(batch, pad_token_id=0,attention_pad_value=0):
         'edited_ending': edited_ending,
     }
 
-def zero_shot_inference(model, tokenizer, test_data):
+
+def chatgpt_zero_shot_inference(api_key, test_data):
+    """
+    Perform zero-shot inference using the OpenAI GPT model.
+
+    Parameters:
+        api_key (str): OpenAI API key.
+        test_data (DataFrame): DataFrame containing the test data.
+
+    Returns:
+        results (list): List of dictionaries containing the results.
+    """
+    openai.api_key = api_key
     results = []
+
     for idx, row in test_data.iterrows():
-        prompt = f"Generate a response for the following input: {row['input']}"
-        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
-        output_ids = model.generate(input_ids)
-        generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
-        results.append({
-            'input': row['input'],
-            'generated_text': generated_text
-        })
+        prompt = (
+            "Generate the adapted ending to fill these three aspects:\n"
+            "1. Minimal Intervention: Adjust the story's ending with minimal changes needed to align it with the altered context. The rewritten edited ending should remain as close as possible to its original ending form.\n"
+            "2. Narrative Insight: Understand the story structure and make changes essential for maintaining the story's coherence and thematic consistency, avoiding unnecessary alterations.\n"
+            "3. Counterfactual Adaptability: Adapt the story's course in response to the counterfactual event that diverges from the original plotline.\n\n"
+            f"Premise: {row['premise']}\n"
+            f"Initial: {row['initial']}\n"
+            f"Original Ending: {row['original_ending']}\n"
+            f"Counterfactual: {row['counterfactual']}\n\n"
+            "Now, generate the adapted ending:"
+        )
+
+        print(f"Prompt for row {idx}: {prompt}")
+
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=5
+            )
+            generated_text = response['choices'][0]['message']['content'].strip()
+            print(f"Generated text for row {idx}: {generated_text}")
+
+            results.append({
+                'premise': row['premise'],
+                'initial': row['initial'],
+                'counterfactual': row['counterfactual'],
+                'original_ending': row['original_ending'],
+                'generated_text': generated_text
+            })
+        except Exception as e:
+            print(f"API call failed for row {idx} with error: {e}")
+
     return results
 
-def one_shot_inference(model, tokenizer, test_data, example_data):
+def chatgpt_one_shot_inference(api_key, test_data, example_selection):
+    """
+    Perform one-shot inference using the OpenAI GPT model.
+
+    Parameters:
+        api_key (str): OpenAI API key.
+        test_data (DataFrame): DataFrame containing the test data.
+        example_selection (str): If "fixed", use a fixed example. If "random", select a random example for each query.
+
+    Returns:
+        results (list): List of dictionaries containing the results.
+    """
+    openai.api_key = api_key
     results = []
+
+    # Prepare the fixed example (using the first row for simplicity)
+    fixed_example = test_data.iloc[0] if example_selection == "fixed" else None
+
     for idx, row in test_data.iterrows():
-        # Randomly select an example
-        example_row = example_data.sample(n=1).iloc[0]
+        # Select a random example if required
+        if example_selection == "random":
+            example = test_data.sample(n=1).iloc[0]
+        else:
+            example = fixed_example
+
         prompt = (
-            f"Example:\nInput: {example_row['input']}\nResponse: {example_row['response']}\n\n"
-            f"Now, generate a response for the following input: {row['input']}"
+            "Generate the adapted ending to fill these three aspects:\n"
+            "1. Minimal Intervention: Adjust the story's ending with minimal changes needed to align it with the altered context. The rewritten edited ending should remain as close as possible to its original ending form.\n"
+            "2. Narrative Insight: Understand the story structure and make changes essential for maintaining the story's coherence and thematic consistency, avoiding unnecessary alterations.\n"
+            "3. Counterfactual Adaptability: Adapt the story's course in response to the counterfactual event that diverges from the original plotline.\n\n"
+            "Example:\n"
+            f"Premise: {example['premise']}\n"
+            f"Initial: {example['initial']}\n"
+            f"Original Ending: {example['original_ending']}\n"
+            f"Counterfactual: {example['counterfactual']}\n"
+            f"Adapted Ending: {example['edited_ending']}\n\n"
+            f"Premise: {row['premise']}\n"
+            f"Initial: {row['initial']}\n"
+            f"Original Ending: {row['original_ending']}\n"
+            f"Counterfactual: {row['counterfactual']}\n\n"
+            "Now, generate the adapted ending:"
         )
-        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
-        output_ids = model.generate(input_ids)
-        generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
-        results.append({
-            'input': row['input'],
-            'example_input': example_row['input'],
-            'example_response': example_row['response'],
-            'generated_text': generated_text
-        })
+
+        print(f"Prompt for row {idx}: {prompt}")
+
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=5
+            )
+            generated_text = response['choices'][0]['message']['content'].strip()
+            print(f"Generated text for row {idx}: {generated_text}")
+
+            results.append({
+                'premise': row['premise'],
+                'initial': row['initial'],
+                'counterfactual': row['counterfactual'],
+                'original_ending': row['original_ending'],
+                'generated_text': generated_text
+            })
+        except Exception as e:
+            print(f"API call failed for row {idx} with error: {e}")
+
     return results

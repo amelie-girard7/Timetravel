@@ -16,6 +16,9 @@ from bertviz import model_view, head_view
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import openai
+import pandas as pd
+from src.utils.utils import chatgpt_zero_shot_inference
 
 
 bart_score_path = str(CONFIG["bart_score_dir"])
@@ -432,4 +435,3 @@ class FlanT5FineTuner(pl.LightningModule):
         """
         lr = CONFIG["learning_rate"]
         return torch.optim.AdamW(self.parameters(), lr=lr)
-
