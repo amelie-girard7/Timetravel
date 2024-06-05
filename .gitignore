@@ -170,3 +170,5 @@ data/
 # Ignore all files inside 'bertviz' directory
 /bertviz/
 
+# Ignore all files and folders in the 'results' directory
+results/

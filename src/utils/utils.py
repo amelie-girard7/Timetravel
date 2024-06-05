@@ -171,13 +171,13 @@ def chatgpt_zero_shot_inference(api_key, test_data):
     for idx, row in test_data.iterrows():
         prompt = (
             "Generate the adapted ending to fill these three aspects:\n"
-            "1. Minimal Intervention: Adjust the story's ending with minimal changes needed to align it with the altered context. The rewritten edited ending should remain as close as possible to its original ending form.\n"
+            "1. Minimal Intervention: Adjust the story's original ending with the minimal changes required to align it with the counterfactual event. The edited ending should remain as close as possible to the original ending.\n"
             "2. Narrative Insight: Understand the story structure and make changes essential for maintaining the story's coherence and thematic consistency, avoiding unnecessary alterations.\n"
-            "3. Counterfactual Adaptability: Adapt the story's course in response to the counterfactual event that diverges from the original plotline.\n\n"
+            "3. Counterfactual Adaptability: Adapt the story's course in response to the counterfactual event that diverges from the initial event.\n\n"
             f"Premise: {row['premise']}\n"
-            f"Initial: {row['initial']}\n"
-            f"Original Ending: {row['original_ending']}\n"
-            f"Counterfactual: {row['counterfactual']}\n\n"
+            f"Initial event: {row['initial']}\n"
+            f"Original ending: {row['original_ending']}\n"
+            f"Counterfactual event: {row['counterfactual']}\n\n"
             "Now, generate the adapted ending:"
         )
 
@@ -185,12 +185,13 @@ def chatgpt_zero_shot_inference(api_key, test_data):
 
         try:
             response = openai.ChatCompletion.create(
-                model="gpt-4",
+                model="gpt-3.5-turbo-0125",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=5
+                #max_tokens=CONFIG["max_gen_length"]  # Use max_gen_length from the config
+                max_tokens=50
             )
             generated_text = response['choices'][0]['message']['content'].strip()
             print(f"Generated text for row {idx}: {generated_text}")
@@ -200,7 +201,7 @@ def chatgpt_zero_shot_inference(api_key, test_data):
                 'initial': row['initial'],
                 'counterfactual': row['counterfactual'],
                 'original_ending': row['original_ending'],
-                'generated_text': generated_text
+                'Adapted Ending': generated_text  # Change key to "Adapted Ending"
             })
         except Exception as e:
             print(f"API call failed for row {idx} with error: {e}")
@@ -234,19 +235,19 @@ def chatgpt_one_shot_inference(api_key, test_data, example_selection):
 
         prompt = (
             "Generate the adapted ending to fill these three aspects:\n"
-            "1. Minimal Intervention: Adjust the story's ending with minimal changes needed to align it with the altered context. The rewritten edited ending should remain as close as possible to its original ending form.\n"
+            "1. Minimal Intervention: Adjust the story's original ending with the minimal changes required to align it with the counterfactual event. The edited ending should remain as close as possible to the original ending.\n"
             "2. Narrative Insight: Understand the story structure and make changes essential for maintaining the story's coherence and thematic consistency, avoiding unnecessary alterations.\n"
-            "3. Counterfactual Adaptability: Adapt the story's course in response to the counterfactual event that diverges from the original plotline.\n\n"
+            "3. Counterfactual Adaptability: Adapt the story's course in response to the counterfactual event that diverges from the initial event.\n\n"
             "Example:\n"
             f"Premise: {example['premise']}\n"
-            f"Initial: {example['initial']}\n"
-            f"Original Ending: {example['original_ending']}\n"
-            f"Counterfactual: {example['counterfactual']}\n"
-            f"Adapted Ending: {example['edited_ending']}\n\n"
+            f"Initial event: {example['initial']}\n"
+            f"Original ending: {example['original_ending']}\n"
+            f"Counterfactual event: {example['counterfactual']}\n"
+            f"Adapted ending: {example['edited_ending']}\n\n"
             f"Premise: {row['premise']}\n"
-            f"Initial: {row['initial']}\n"
-            f"Original Ending: {row['original_ending']}\n"
-            f"Counterfactual: {row['counterfactual']}\n\n"
+            f"Initial event: {row['initial']}\n"
+            f"Original ending: {row['original_ending']}\n"
+            f"Counterfactual event: {row['counterfactual']}\n\n"
             "Now, generate the adapted ending:"
         )
 
@@ -254,12 +255,13 @@ def chatgpt_one_shot_inference(api_key, test_data, example_selection):
 
         try:
             response = openai.ChatCompletion.create(
-                model="gpt-4",
+                model="gpt-3.5-turbo-0125",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=5
+                #max_tokens=CONFIG["max_gen_length"]  # Use max_gen_length from the config
+                max_tokens=50
             )
             generated_text = response['choices'][0]['message']['content'].strip()
             print(f"Generated text for row {idx}: {generated_text}")
@@ -269,7 +271,7 @@ def chatgpt_one_shot_inference(api_key, test_data, example_selection):
                 'initial': row['initial'],
                 'counterfactual': row['counterfactual'],
                 'original_ending': row['original_ending'],
-                'generated_text': generated_text
+                'Adapted Ending': generated_text  # Change key to "Adapted Ending"
             })
         except Exception as e:
             print(f"API call failed for row {idx} with error: {e}")

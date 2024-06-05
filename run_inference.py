@@ -52,6 +52,7 @@ def main(mode, example_selection=None):
         print(f"Unknown mode: {mode}")
         return
 
+    # Save results to CSV with correct headers
     pd.DataFrame(results).to_csv(results_path, index=False)
     print(f"Inference results saved to {results_path}")
 
