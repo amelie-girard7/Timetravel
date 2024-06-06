@@ -12,11 +12,6 @@ from rouge import Rouge
 from bert_score import BERTScorer
 from src.BARTScore_metric.bart_score import BARTScorer
 from src.utils.config import CONFIG
-from bertviz import model_view, head_view
-import matplotlib.pyplot as plt
-import numpy as np
-import seaborn as sns
-import openai
 import pandas as pd
 from src.utils.utils import chatgpt_zero_shot_inference
 
