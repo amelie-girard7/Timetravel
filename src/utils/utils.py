@@ -8,6 +8,10 @@ import torch
 import torch.nn.utils.rnn
 import uuid  # Add this import statement
 from src.utils.config import CONFIG
+import google.generativeai as genai
+from google.generativeai import types
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +192,7 @@ def chatgpt_zero_shot_inference(api_key, test_data):
         for attempt in range(max_retries):
             try:
                 response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo-0125",
+                    model="gpt-4o",
                     messages=[
                         {"role": "system", "content": "You are a helpful assistant."},
                         {"role": "user", "content": prompt}
@@ -219,82 +223,7 @@ def chatgpt_zero_shot_inference(api_key, test_data):
     return results
 
 def chatgpt_one_shot_inference(api_key, test_data, example_selection):
-    """
-    Perform one-shot inference using the OpenAI GPT model.
 
-    Parameters:
-        api_key (str): OpenAI API key.
-        test_data (DataFrame): DataFrame containing the test data.
-        example_selection (str): If "fixed", use a fixed example. If "random", select a random example for each query.
-
-    Returns:
-        results (list): List of dictionaries containing the results.
-    """
-    openai.api_key = api_key
-    results = []
-
-    # Prepare the fixed example (using the first row for simplicity)
-    fixed_example = test_data.iloc[0] if example_selection == "fixed" else None
-
-    for idx, row in test_data.iterrows():
-        # Select a random example if required
-        if example_selection == "random":
-            example = test_data.sample(n=1).iloc[0]
-        else:
-            example = fixed_example
-
-        prompt = (
-            "Generate the adapted ending to fill these three aspects:\n"
-            "1. Minimal Intervention: Adjust the story's original ending with the minimal changes required to align it with the counterfactual event. The edited ending should remain as close as possible to the original ending.\n"
-            "2. Narrative Insight: Understand the story structure and make changes essential for maintaining the story's coherence and thematic consistency, avoiding unnecessary alterations.\n"
-            "3. Counterfactual Adaptability: Adapt the story's course in response to the counterfactual event that diverges from the initial event.\n\n"
-            "Example:\n"
-            f"Premise: {example['premise']}\n"
-            f"Initial event: {example['initial']}\n"
-            f"Original ending: {example['original_ending']}\n"
-            f"Counterfactual event: {example['counterfactual']}\n"
-            f"Adapted ending: {example['edited_ending']}\n\n"
-            f"Premise: {row['premise']}\n"
-            f"Initial event: {row['initial']}\n"
-            f"Original ending: {row['original_ending']}\n"
-            f"Counterfactual event: {row['counterfactual']}\n\n"
-            "Now, generate the adapted ending:"
-        )
-
-        #print(f"Prompt for row {idx}: {prompt}")
-
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo-0125",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=50  # Use max_gen_length from the config if necessary
-            )
-            generated_text = response['choices'][0]['message']['content'].strip()
-
-            # Remove "Adapted ending:" prefix if present
-            if generated_text.lower().startswith("adapted ending:"):
-                generated_text = generated_text[len("adapted ending:"):].strip()
-
-            #print(f"Generated text for row {idx}: {generated_text}")
-
-            results.append({
-                'story_id': row['story_id'],
-                'premise': row['premise'],
-                'initial': row['initial'],
-                'counterfactual': row['counterfactual'],
-                'original_ending': row['original_ending'],
-                'edited_ending': row['edited_ending'],
-                'generated_text': generated_text  # Change key to "generated_text"
-            })
-        except Exception as e:
-            print(f"API call failed for row {idx} with error: {e}")
-
-    return results
-
-def chatgpt_one_shot_inference(api_key, test_data, example_selection):
     """
     Perform one-shot inference using the OpenAI GPT model.
 
@@ -343,7 +272,7 @@ def chatgpt_one_shot_inference(api_key, test_data, example_selection):
         for attempt in range(max_retries):
             try:
                 response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo-0125",
+                    model="gpt-4o",
                     messages=[
                         {"role": "system", "content": "You are a helpful assistant."},
                         {"role": "user", "content": prompt}
@@ -351,11 +280,6 @@ def chatgpt_one_shot_inference(api_key, test_data, example_selection):
                     max_tokens=50  # Adjust if needed
                 )
                 generated_text = response['choices'][0]['message']['content'].strip()
-
-                # Remove "Adapted ending:" prefix if present
-                if generated_text.lower().startswith("adapted ending:"):
-                    generated_text = generated_text[len("adapted ending:"):].strip()
-
                 break  # Exit the retry loop on success
             except Exception as e:
                 logging.error(f"API call failed for row {idx} with error: {e}")
@@ -374,6 +298,137 @@ def chatgpt_one_shot_inference(api_key, test_data, example_selection):
             'original_ending': row['original_ending'],
             'edited_ending': row['edited_ending'],
             'generated_text': generated_text  # Store the generated text or error message
+        })
+
+    return results
+
+def gemini_zero_shot_inference(api_key, test_data):
+    """
+    Perform zero-shot inference using Gemini 2.0 (flash version) with text-only input.
+    Uses the Google Generative AI Python SDK with a generation configuration similar to GPT.
+    """
+    # Corrected the logic in try except block
+    genai.configure(api_key=api_key)
+    # Create a client instance and use the flash model.
+    model = genai.GenerativeModel('gemini-2.0-flash')
+
+    # Generation configuration: set max tokens and optional parameters.
+    generation_config = types.GenerationConfig(
+        max_output_tokens=50,  # Equivalent to GPT's max_tokens=50
+    )
+
+    results = []
+    max_retries = 3
+    retry_delay = 5  # seconds
+
+    for idx, row in test_data.iterrows():
+        prompt = (
+            "Generate the adapted ending to fill these three aspects:\n"
+            "1. Minimal Intervention: Adjust the story's original ending with minimal changes.\n"
+            "2. Narrative Insight: Maintain coherence and thematic consistency.\n"
+            "3. Counterfactual Adaptability: Adapt to the counterfactual event.\n\n"
+            f"Premise: {row['premise']}\n"
+            f"Initial event: {row['initial']}\n"
+            f"Original ending: {row['original_ending']}\n"
+            f"Counterfactual event: {row['counterfactual']}\n\n"
+            "Now, generate the adapted ending:"
+        )
+
+        for attempt in range(max_retries):
+            try:
+                response = model.generate_content(
+                    prompt,
+                    generation_config=generation_config
+                )
+                generated_text = response.text
+                break  # Exit loop on success
+            except Exception as e:
+                logger.error(f"Gemini API call failed for row {idx} with error: {e}")
+                if attempt < max_retries - 1:
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    generated_text = 'Error'
+        results.append({
+            'story_id': row.get('story_id', str(uuid.uuid4())),
+            'premise': row['premise'],
+            'initial': row['initial'],
+            'counterfactual': row['counterfactual'],
+            'original_ending': row['original_ending'],
+            'edited_ending': row['edited_ending'],
+            'generated_text': generated_text
+        })
+
+    return results
+
+def gemini_one_shot_inference(api_key, test_data, example_selection):
+    """
+    Perform one-shot inference using Gemini 2.0 (flash version) with a prompt that includes an example.
+    Uses the Google Generative AI Python SDK with a generation configuration.
+    """
+    # Corrected the logic in try except block
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-2.0-flash')
+
+    generation_config = types.GenerationConfig(
+        max_output_tokens=50,
+    )
+
+    results = []
+    max_retries = 5
+    retry_delay = 10  # seconds
+
+    # Choose a fixed example if required.
+    fixed_example = test_data.iloc[0] if example_selection == "fixed" else None
+
+    for idx, row in test_data.iterrows():
+        example = (
+            test_data.sample(n=1).iloc[0]
+            if example_selection == "random"
+            else fixed_example
+        )
+
+        prompt = (
+            "Generate the adapted ending to fill these three aspects:\n"
+            "1. Minimal Intervention: Adjust the story's original ending minimally.\n"
+            "2. Narrative Insight: Keep the story coherent and thematically consistent.\n"
+            "3. Counterfactual Adaptability: Adapt according to the counterfactual event.\n\n"
+            "Example:\n"
+            f"Premise: {example['premise']}\n"
+            f"Initial event: {example['initial']}\n"
+            f"Original ending: {example['original_ending']}\n"
+            f"Counterfactual event: {example['counterfactual']}\n"
+            f"Adapted ending: {example['edited_ending']}\n\n"
+            f"Premise: {row['premise']}\n"
+            f"Initial event: {row['initial']}\n"
+            f"Original ending: {row['original_ending']}\n"
+            f"Counterfactual event: {row['counterfactual']}\n\n"
+            "Now, generate the adapted ending:"
+        )
+
+        for attempt in range(max_retries):
+            try:
+                response =  model.generate_content(
+                    prompt,
+                    generation_config=generation_config
+                )
+                generated_text = response.text
+                break  # Exit on success
+            except Exception as e:
+                logger.error(f"Gemini API call failed for row {idx} with error: {e}")
+                if attempt < max_retries - 1:
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    generated_text = 'Error'
+        results.append({
+            'story_id': row['story_id'],
+            'premise': row['premise'],
+            'initial': row['initial'],
+            'counterfactual': row['counterfactual'],
+            'original_ending': row['original_ending'],
+            'edited_ending': row['edited_ending'],
+            'generated_text': generated_text
         })
 
     return results
